@@ -24,7 +24,7 @@ sub new {
         protocol_class => 'Text',
         servers => undef,
         namespace => undef,
-        @_,
+        @_ == 1 ? %{$_[0]} : @_,
         _is_connected => undef,
         _is_connecting => undef,
         _queue => [],
@@ -344,12 +344,11 @@ sub prepare_value {
         ($cmd ne 'append' && $cmd ne 'prepend') &&
         $threshold && 
         HAVE_ZLIB() &&
-        $self->compress_enabled &&
         $len >= $threshold
     ;
     if ($compressable) {
         my $c_val = Compress::Zlib::memGzip($value);
-        my $c_len = length($c_val);
+        my $c_len = bytes::length($c_val);
 
         if ($c_len < $len * ( 1 - COMPRESS_SAVINGS() ) ) {
             $value = $c_val;
@@ -406,6 +405,10 @@ There were more than a few modules that get installed for L<AnyEvent::Memcached>
 =item Binary Protocol
 
 I was in the mood to implement the binary protocol. I don't believe it's a requirement to do anything, so this is purely a whim.
+
+=item Unimplemented Methods
+
+get_multi and the like are not implemented yet on L<AnyEvent::Memcached>.
 
 =back
 
