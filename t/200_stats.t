@@ -20,7 +20,7 @@ foreach my $protocol qw(Text Binary) {
         $memd->stats( sub {
             my $stats = shift;
 
-            foreach my $server ( $memd->all_servers ) {
+            foreach my $server ( @{ $memd->servers } ) {
                 is( ref $stats->{$server}, 'HASH', "Stats for $server exists" );
             }
             $cv->end;

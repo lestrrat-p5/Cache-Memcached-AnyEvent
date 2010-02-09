@@ -7,10 +7,11 @@ use base 'Cache::Memcached::AnyEvent::Protocol';
         my $cmd = shift;
         return sub {
             my ($guard, $self, $memcached, $key, $value, $initial, $cb) = @_;
-            my $handle = $self->get_handle_for( $key );
+            my $fq_key = $self->prepare_key( $key );
+            my $handle = $self->get_handle_for( $fq_key );
         
             $value ||= 1;
-            my @command = ($cmd => $key => $value);
+            my @command = ($cmd => $fq_key => $value);
             my $noreply = 0; # XXX - FIXME
             if ($noreply) {
                 push @command, "noreply";
@@ -43,6 +44,7 @@ sub _build_delete_cb {
     return sub {
         my ($guard, $self, $memcached, $key, $noreply, $cb) = @_;
 
+        my $fq_key = $self->prepare_key( $key );
         my $handle = $self->get_handle_for( $key );
 
         my @command = (delete => $key);
@@ -88,14 +90,15 @@ sub _build_get_multi_cb {
         my $count = $memcached->get_server_count();
         my @keysinserver;
         foreach my $key (@$keys) {
-            my $hash   = $memcached->{hashing_algorithm}->hash($key);
+            my $fq_key = $self->prepare_key( $key );
+            my $hash   = $memcached->{hashing_algorithm}->hash($fq_key);
             my $i      = $hash % $count;
             my $handle = $memcached->get_handle( $memcached->get_server($i) );
             my $list = $keysinserver[ $i ];
             if (! $list) {
                 $keysinserver[ $i ] = $list = [ $handle ];
             }
-            push @$list, $key;
+            push @$list, $fq_key;
         }
    
         my %rv;
@@ -112,8 +115,9 @@ sub _build_get_multi_cb {
                 } elsif ($line =~ /^VALUE (\S+) (\S+) (\S+)(?: (\S+))?/)  {
                     my ($rkey, $rflags, $rsize, $rcas) = ($1, $2, $3, $4);
                     $handle->push_read(chunk => $rsize, sub {
+                        my $key = $self->decode_key($rkey);
                         my $data = $self->decode_value($rflags, $_[1]);
-                        $rv{ $rkey } = $data; # XXX whatabout CAS?
+                        $rv{ $key } = $data; # XXX whatabout CAS?
                         $handle->push_read(regex => qr{\r\n}, cb => sub { "noop" });
                         $handle->push_read(line => $code);
                     } );
@@ -133,12 +137,12 @@ sub _build_get_multi_cb {
         my $cmd = shift;
         sub {
             my ($guard, $self, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
-
-            my $handle = $self->get_handle_for( $key );
+            my $fq_key = $self->prepare_key( $key );
+            my $handle = $self->get_handle_for( $fq_key );
 
             my ($write_data, $write_len, $flags, $expires) =
                 $self->prepare_value( $cmd, $value, $exptime );
-            $handle->push_write("$cmd $key $flags $expires $write_len\r\n$write_data\r\n");
+            $handle->push_write("$cmd $fq_key $flags $expires $write_len\r\n$write_data\r\n");
             if (! $noreply) {
                 $handle->push_read(regex => qr{^STORED\r\n}, sub {
                     undef $guard;
@@ -175,7 +179,7 @@ sub _build_stats_cb {
 
         my %rv;
         $cv->begin(sub { $_[0]->send(\%rv) });
-        foreach my $server ($memcached->all_servers) {
+        foreach my $server (@{ $memcached->servers }) {
             my $handle = $memcached->get_handle( $server );
 
             $handle->push_write( $name ? "stats $name\r\n" : "stats\r\n" );

@@ -38,6 +38,7 @@ sub test_client {
 
     return Cache::Memcached::AnyEvent->new(
         servers => \@servers,
+        namespace => join('.', time(), $$, '')
     );
 }
     

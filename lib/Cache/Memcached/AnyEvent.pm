@@ -16,6 +16,7 @@ sub new {
         protocol => undef,
         protocol_class => 'Text',
         servers => undef,
+        namespace => undef,
         @_,
         _is_connected => undef,
         _is_connecting => undef,
@@ -58,7 +59,7 @@ sub _build_protocol {
 }
 
 BEGIN {
-    foreach my $attr qw(compress_threshold servers) {
+    foreach my $attr qw(compress_threshold servers namespace) {
         eval <<EOSUB;
             sub $attr {
                 my \$self = shift;
@@ -154,8 +155,6 @@ sub add {
     my ($key, $value, $exptime, $noreply) = @args;
     $self->push_queue( $self->protocol->{add_cb}, $self->protocol, $self, $key, $value, $exptime, $noreply, $cb );
 }
-
-sub all_servers { @{ shift->{servers} } }
 
 sub decr {
     my ($self, @args) = @_;
@@ -291,6 +290,7 @@ Cache::Memcached::AnyEvent - AnyEvent Compatible Memcached Client
     my $memd = Cache::Memcached::AnyEvent->new(
         servers => [ '127.0.0.1:11211' ],
         compress_threshold => 10_000,
+        namespace => 'myapp.',
     );
 
     $memd->get( $key, sub {
@@ -328,8 +328,6 @@ I was in the mood to implement the binary protocol. I don't believe it's a requi
 
 =head2 add($key, $value[, $exptime, $noreply], $cb->($rc))
 
-=head2 all_servers()
-
 =head2 connect()
 
 Explicitly connects to each server given. You DO NOT need to call this
@@ -366,6 +364,8 @@ explicitly.
 =head2 remove($key, $cb->($rc))
 
 Alias to delete
+
+=head2 servers()
 
 =head2 set($key, $value[, $exptime, $noreply], $cb->($rc))
 

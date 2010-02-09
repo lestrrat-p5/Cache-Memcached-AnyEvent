@@ -8,7 +8,7 @@ plan tests => 42 * 2;
 # count should be >= 4.
 use constant count => 10;
 
-my $key = 'commands';
+my $key = 'CMAETest.' . int(rand(1000));
 my @keys = map { "commands-$_" } (1..count);
 
 my @callbacks = (

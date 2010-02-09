@@ -308,14 +308,15 @@ sub _status_str {
         my $bincmd = $bincmd{$cmd};
         sub {
             my ($guard, $self, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
-            my $handle = $self->get_handle_for( $key );
+            my $fq_key = $self->prepare_key( $key );
+            my $handle = $self->get_handle_for( $fq_key );
 
             my ($write_data, $write_len, $flags, $expires) =
                 $self->prepare_value( $cmd, $value, $exptime || 0);
 
             my $extras = pack('N2', $flags, $expires);
 
-            $handle->push_write( memcached_bin => $bincmd, $key, $extras, $write_data );
+            $handle->push_write( memcached_bin => $bincmd, $fq_key, $extras, $write_data );
             $handle->push_read( memcached_bin => sub {
                 undef $guard;
                 $cb->($_[0]->{status} == 0, $_[0]->{value}, $_[0]);
@@ -343,9 +344,10 @@ sub _build_delete_cb {
     return sub {
         my ($guard, $self, $memcached, $key, $noreply, $cb) = @_;
 
-        my $handle = $self->get_handle_for($key);
+        my $fq_key = $self->prepare_key($key);
+        my $handle = $self->get_handle_for($fq_key);
 
-        $handle->push_write( memcached_bin => MEMD_DELETE, $key );
+        $handle->push_write( memcached_bin => MEMD_DELETE, $fq_key );
         $handle->push_read( memcached_bin => sub {
             undef $guard;
             $cb->(@_);
@@ -361,12 +363,13 @@ sub _build_get_multi_cb {
         my %handle2keys;
             
         foreach my $key (@$keys) {
-            my $handle = $self->get_handle_for( $key );
+            my $fq_key = $self->prepare_key( $key );
+            my $handle = $self->get_handle_for( $fq_key );
             my $list = $handle2keys{ $handle };
             if (! $list) {
-                $handle2keys{$handle} = [ $handle, $key ];
+                $handle2keys{$handle} = [ $handle, $fq_key ];
             } else {
-                push @$list, $key;
+                push @$list, $fq_key;
             }
         }
 
@@ -397,7 +400,9 @@ sub _build_get_multi_cb {
 
                     my ($flags, $exptime) = unpack('N2', $msg->{extra});
                     if (exists $msg->{key} && exists $msg->{value}) {
-                        $result{ $msg->{key} } = exists $msg->{value} ? $msg->{value} : undef;
+                        my $key = $self->decode_key($key);
+                        my $value = $self->decode_value( $flags, $msg->{value} );
+                        $result{ $key } = $value;
                     }
                     $cv->end;
                 });
@@ -419,7 +424,8 @@ sub _build_get_multi_cb {
             $value ||= 1;
             my $expires = defined $initial ? 0 : 0xffffffff;
             $initial ||= 0;
-            my $handle = $self->get_handle_for($key);
+            my $fq_key = $self->prepare_key( $key );
+            my $handle = $self->get_handle_for($fq_key);
             my $extras;
             if (HAS_64BIT) {
                 $extras = pack('Q2L', $value, $initial, $expires );
@@ -428,7 +434,7 @@ sub _build_get_multi_cb {
             }
     
             $handle->push_write(memcached_bin => 
-                $opcode, $key, $extras, undef, undef, undef, undef);
+                $opcode, $fq_key, $extras, undef, undef, undef, undef);
             $handle->push_read(memcached_bin => sub {
                 undef $guard;
                 my $value;

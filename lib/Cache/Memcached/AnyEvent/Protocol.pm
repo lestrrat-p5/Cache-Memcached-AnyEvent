@@ -46,6 +46,14 @@ sub get_handle_for {
     return $handle;
 }
 
+sub prepare_key {
+    my ($self, $key) = @_;
+    if (my $ns = $self->{memcached}->namespace) {
+        $key = $ns . $key;
+    }
+    return $key;
+}
+
 sub prepare_value {
     my ($self, $cmd, $value, $exptime) = @_;
 
@@ -79,6 +87,15 @@ sub prepare_value {
     $exptime = int($exptime || 0);
 
     return ($value, $len, $flags, $exptime);
+}
+
+sub decode_key {
+    my ($self, $key) = @_;
+
+    if (my $ns = $self->{memcached}->namespace) {
+        $key =~ s/^$ns//;
+    }
+    return $key;
 }
 
 sub decode_value {
