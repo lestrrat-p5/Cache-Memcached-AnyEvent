@@ -199,13 +199,7 @@ sub prepare_handle {
 }
 
 AnyEvent::Handle::register_write_type memcached_bin => sub {
-    my ($self, @args) = @_;
-    return _encode_request(@args);
-};
-
-sub _encode_request {
-    my ( $opcode, $key, $extras, $body, $cas, $data_type, $reserved ) = @_;
-
+    my ($self, $opcode, $key, $extras, $body, $cas, $data_type, $reserved ) = @_;
     my $key_length = defined $key ? length($key) : 0;
     # first 4 bytes (long)
     my $i1 = 0;
@@ -262,8 +256,6 @@ sub _encode_request {
 
     return $message;
 };
-
-use constant _noop => _encode_request(MEMD_NOOP, undef, undef, undef, undef, undef, undef);
 
 sub _status_str {
     my $status = shift;
@@ -390,9 +382,6 @@ sub _build_get_multi_cb {
                     }
                     $cv->end;
                 });
-
-                $handle->push_write( _noop() );
-                $handle->push_read( memcached_bin => sub {} );
             }
         }
         $cv->end;
