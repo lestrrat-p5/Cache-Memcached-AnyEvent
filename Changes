@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.00004 - 09 Feb 2010
+    * Allow hashrefs to the constructor
+    * Minor tweaks
+    * Add Compress::Zlib in recommends
+
 0.00003 - 09 Feb 2010
     * Fix version() on binary protocol
     * Some micro optimizations 
