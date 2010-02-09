@@ -5,6 +5,8 @@ use AnyEvent::Handle;
 use AnyEvent::Socket;
 use Carp qw(confess);
 
+our $VERSION = '0.00001';
+
 sub new {
     my $class = shift;
     my $self  = bless {
