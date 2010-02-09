@@ -317,6 +317,7 @@ sub _status_str {
 
             $handle->push_write( memcached_bin => $bincmd, $key, $extras, $write_data );
             $handle->push_read( memcached_bin => sub {
+                undef $guard;
                 $cb->($_[0]->{status} == 0, $_[0]->{value}, $_[0]);
             });
         }
@@ -346,6 +347,7 @@ sub _build_delete_cb {
 
         $handle->push_write( memcached_bin => MEMD_DELETE, $key );
         $handle->push_read( memcached_bin => sub {
+            undef $guard;
             $cb->(@_);
         } );
     }
@@ -428,6 +430,7 @@ sub _build_get_multi_cb {
             $handle->push_write(memcached_bin => 
                 $opcode, $key, $extras, undef, undef, undef, undef);
             $handle->push_read(memcached_bin => sub {
+                undef $guard;
                 my $value;
                 if (HAS_64BIT) {
                     $value = unpack('Q', $_[0]->{value});
@@ -455,18 +458,18 @@ sub _build_version_cb {
 
         my %ret;
         my $cv = AE::cv { $cb->( \%ret ); undef %ret };
-        while (my ($host_port, $handle) = each %{ $memcached->{handles} }) {
+        while (my ($host_port, $handle) = each %{ $memcached->{_server_handles} }) {
             $handle->push_write(memcached_bin => MEMD_VERSION);
             $cv->begin;
             $handle->push_read(memcached_bin => sub {
                 my $msg = shift;
-                my $value = unpack('a*', $msg->{value});
+                undef $guard;
+                my $value = unpack('a', $msg->{value});
 
                 $ret{ $host_port } = $value;
                 $cv->end;
             });
         }
-        $cv->end;
     }
 }
         
