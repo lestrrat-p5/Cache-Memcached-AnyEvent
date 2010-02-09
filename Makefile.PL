@@ -8,4 +8,6 @@ requires 'AnyEvent::Handle';
 
 requires 'String::CRC32'; # sorry, required
 
+recommends 'Compress::Zlib';
+
 WriteAll;
