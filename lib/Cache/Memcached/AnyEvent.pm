@@ -371,4 +371,15 @@ Alias to delete
 
 =head2 version($cb->(\%result))
 
+=head1 AUTHOR
+
+Daisuke Maki C<< <daisuke@endeworks.jp> >>
+
+=head1 LICENSE
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See http://www.perl.com/perl/misc/Artistic.html
+
 =cut
