@@ -373,11 +373,11 @@ Cache::Memcached::AnyEvent - AnyEvent Compatible Memcached Client
 
     use Cache::Memcached::AnyEvent;
 
-    my $memd = Cache::Memcached::AnyEvent->new(
+    my $memd = Cache::Memcached::AnyEvent->new({
         servers => [ '127.0.0.1:11211' ],
         compress_threshold => 10_000,
         namespace => 'myapp.',
-    );
+    });
 
     $memd->get( $key, sub {
         my ($value) = @_;
