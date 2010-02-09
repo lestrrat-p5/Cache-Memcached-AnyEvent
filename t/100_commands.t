@@ -68,11 +68,13 @@ SKIP: {
         $cv->send;
     };
 
+    $cv->begin;
     $memd->version( sub {
         undef $t; 
         while ( my($host_port, $version) = each %{$_[0]} ) {
             diag("($protocol) using memcached $version on $host_port");
         }
+        $cv->end;
     } );
 
     foreach my $code (@callbacks) {
