@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.00003 - 09 Feb 2010
+    * Fix version() on binary protocol
+    * Some micro optimizations 
+
 0.00002 - 09 Feb 2010
     * Add namespace support
     * Remove all_servers(). Use servers() instead.
