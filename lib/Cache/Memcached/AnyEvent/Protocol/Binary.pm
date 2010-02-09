@@ -273,26 +273,20 @@ sub _status_str {
 
 # Generate setters
 {
-    my %bincmd = (
-        add => MEMD_ADD(),
-        replace => MEMD_REPLACE(),
-        set => MEMD_SET(),
-    );
     my $generator = sub {
-        my $cmd = shift;
+        my ($cmd, $opcode) = @_;
 
-        my $bincmd = $bincmd{$cmd};
         sub {
             my ($guard, $self, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
-            my $fq_key = $self->prepare_key( $key );
-            my $handle = $self->get_handle_for( $fq_key );
+            my $fq_key = $memcached->prepare_key( $key );
+            my $handle = $memcached->get_handle_for( $fq_key );
 
             my ($write_data, $write_len, $flags, $expires) =
-                $self->prepare_value( $cmd, $value, $exptime || 0);
+                $memcached->prepare_value( $cmd, $value, $exptime || 0);
 
             my $extras = pack('N2', $flags, $expires);
 
-            $handle->push_write( memcached_bin => $bincmd, $fq_key, $extras, $write_data );
+            $handle->push_write( memcached_bin => $opcode, $fq_key, $extras, $write_data );
             $handle->push_read( memcached_bin => sub {
                 undef $guard;
                 $cb->($_[0]->{status} == 0, $_[0]->{value}, $_[0]);
@@ -302,17 +296,17 @@ sub _status_str {
 
     sub _build_add_cb {
         my $self = shift;
-        return $generator->("add");
+        return $generator->("add", MEMD_ADD);
     }
 
     sub _build_replace_cb {
         my $self = shift;
-        return $generator->("replace");
+        return $generator->("replace", MEMD_REPLACE);
     }
 
     sub _build_set_cb {
         my $self = shift;
-        return $generator->("set");
+        return $generator->("set", MEMD_SET);
     }
 }
 
@@ -320,8 +314,8 @@ sub _build_delete_cb {
     return sub {
         my ($guard, $self, $memcached, $key, $noreply, $cb) = @_;
 
-        my $fq_key = $self->prepare_key($key);
-        my $handle = $self->get_handle_for($fq_key);
+        my $fq_key = $memcached->prepare_key($key);
+        my $handle = $memcached->get_handle_for($fq_key);
 
         $handle->push_write( memcached_bin => MEMD_DELETE, $fq_key );
         $handle->push_read( memcached_bin => sub {
@@ -339,8 +333,8 @@ sub _build_get_multi_cb {
         my %handle2keys;
             
         foreach my $key (@$keys) {
-            my $fq_key = $self->prepare_key( $key );
-            my $handle = $self->get_handle_for( $fq_key );
+            my $fq_key = $memcached->prepare_key( $key );
+            my $handle = $memcached->get_handle_for( $fq_key );
             my $list = $handle2keys{ $handle };
             if (! $list) {
                 $handle2keys{$handle} = [ $handle, $fq_key ];
@@ -376,8 +370,7 @@ sub _build_get_multi_cb {
 
                     my ($flags, $exptime) = unpack('N2', $msg->{extra});
                     if (exists $msg->{key} && exists $msg->{value}) {
-                        my $key = $self->decode_key($key);
-                        my $value = $self->decode_value( $flags, $msg->{value} );
+                        my ($key, $value) = $memcached->decode_key_value($key, $flags, $msg->{value} );
                         $result{ $key } = $value;
                     }
                     $cv->end;
@@ -397,8 +390,8 @@ sub _build_get_multi_cb {
             $value ||= 1;
             my $expires = defined $initial ? 0 : 0xffffffff;
             $initial ||= 0;
-            my $fq_key = $self->prepare_key( $key );
-            my $handle = $self->get_handle_for($fq_key);
+            my $fq_key = $memcached->prepare_key( $key );
+            my $handle = $memcached->get_handle_for($fq_key);
             my $extras;
             if (HAS_64BIT) {
                 $extras = pack('Q2L', $value, $initial, $expires );

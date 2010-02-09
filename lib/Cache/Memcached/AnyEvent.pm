@@ -5,6 +5,13 @@ use AnyEvent::Handle;
 use AnyEvent::Socket;
 use Carp qw(confess);
 
+use constant +{
+    HAVE_ZLIB => eval { require Compress::Zlib; 1 },
+    F_STORABLE => 1,
+    F_COMPRESS => 2,
+    COMPRESS_SAVINGS => 0.20,
+};
+
 our $VERSION = '0.00002';
 
 sub new {
@@ -275,6 +282,86 @@ sub DESTROY {
     $self->disconnect;
 }
     
+sub get_handle_for {
+    my ($self, $key) = @_;
+    my $servers   = $self->{servers};
+    my $count     = scalar @$servers;
+    my $hash      = $self->hashing_algorithm->hash($key);
+    my $i         = $hash % $count;
+    my $handle    = $self->get_handle( $servers->[ $i ] );
+    if (! $handle) {
+        die "Could not find handle for $key";
+    }
+
+    return $handle;
+}
+
+sub prepare_key {
+    my ($self, $key) = @_;
+    if (my $ns = $self->{namespace}) {
+        $key = $ns . $key;
+    }
+    return $key;
+}
+
+sub decode_key_value {
+    my ($self, $key, $flags, $data) = @_;
+
+    if (my $ns = $self->{namespace}) {
+        $key =~ s/^$ns//;
+    }
+
+    if ($flags & F_COMPRESS() && HAVE_ZLIB()) {
+        $data = Compress::Zlib::memGunzip($data);
+    }
+    if ($flags & F_STORABLE()) {
+        $data = Storable::thaw($data);
+    }
+    return ($key, $data);
+}
+
+sub decode_key {
+    my ($self, $key) = @_;
+
+    if (my $ns = $self->{namespace}) {
+        $key =~ s/^$ns//;
+    }
+    return $key;
+}
+
+sub prepare_value {
+    my ($self, $cmd, $value, $exptime) = @_;
+
+    my $flags = 0;
+    if (ref $value) {
+        $value = Storable::nfreeze($value);
+        $flags |= F_STORABLE();
+    }
+
+    my $len = bytes::length($value);
+    my $threshold = $self->compress_threshold;
+    my $compressable = 
+        ($cmd ne 'append' && $cmd ne 'prepend') &&
+        $threshold && 
+        HAVE_ZLIB() &&
+        $self->compress_enabled &&
+        $len >= $threshold
+    ;
+    if ($compressable) {
+        my $c_val = Compress::Zlib::memGzip($value);
+        my $c_len = length($c_val);
+
+        if ($c_len < $len * ( 1 - COMPRESS_SAVINGS() ) ) {
+            $value = $c_val;
+            $len = $c_len;
+            $flags |= F_COMPRESS();
+        }
+    }
+    $exptime = int($exptime || 0);
+
+    return ($value, $len, $flags, $exptime);
+}
+
 1;
 
 __END__
