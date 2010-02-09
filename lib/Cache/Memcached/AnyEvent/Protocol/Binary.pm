@@ -470,7 +470,7 @@ sub _build_version_cb {
             $handle->push_read(memcached_bin => sub {
                 my $msg = shift;
                 undef $guard;
-                my $value = unpack('a', $msg->{value});
+                my $value = unpack('a*', $msg->{value});
 
                 $ret{ $host_port } = $value;
                 $cv->end;
