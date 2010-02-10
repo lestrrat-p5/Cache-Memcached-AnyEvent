@@ -3,7 +3,7 @@ use strict;
 use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
-use Carp qw(confess);
+use Carp;
 use String::CRC32;
 
 use constant +{
@@ -48,7 +48,7 @@ sub _build_protocol {
     $p_class =~ s/[^\w:_]//g; # cleanse
 
     eval "require $p_class";
-    confess $@ if $@;
+    Carp::confess $@ if $@;
     return $p_class->new(memcached => $self);
 }
 
@@ -64,7 +64,7 @@ BEGIN {
                 return \$ret;
             }
 EOSUB
-        confess if $@;
+        Carp::confess if $@;
     }
 
     foreach my $attr qw(protocol) {
@@ -81,7 +81,7 @@ EOSUB
                 return \$ret;
             }
 EOSUB
-        confess if $@;
+        Carp::confess if $@;
         eval <<EOSUB;
             sub ${attr}_class {
                 my \$self = shift;
@@ -93,7 +93,7 @@ EOSUB
                 return \$ret;
             }
 EOSUB
-        confess if $@;
+        Carp::confess if $@;
     }
 }
 
