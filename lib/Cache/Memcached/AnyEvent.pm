@@ -131,6 +131,15 @@ print "# Connecting to $server\n";
             } else {
                 my $h; $h = AnyEvent::Handle->new(
                     fh => $fh,
+                    on_drain => sub {
+                        my $h = shift;
+                        if (defined $h->{wbuf} && $h->{wbuf} eq "") {
+                            delete $h->{wbuf}; $h->{wbuf} = "";
+                        }
+                        if (defined $h->{rbuf} && $h->{rbuf} eq "") {
+                            delete $h->{rbuf}; $h->{rbuf} = "";
+                        }
+                    },
                     on_eof => sub {
                         my $h = delete $handles{$server};
                         $h->destroy();
