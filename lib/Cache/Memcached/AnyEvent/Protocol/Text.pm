@@ -81,7 +81,7 @@ sub get_multi {
     my @keysinserver;
     foreach my $key (@$keys) {
         my $fq_key = $memcached->prepare_key( $key );
-        my $hash   = $memcached->{hashing_algorithm}->hash($fq_key);
+        my $hash   = $memcached->{hash_cb}->($fq_key, $memcached);
         my $i      = $hash % $count;
         my $handle = $memcached->get_handle( $memcached->{_active_servers}->[$i] );
         my $list = $keysinserver[ $i ];

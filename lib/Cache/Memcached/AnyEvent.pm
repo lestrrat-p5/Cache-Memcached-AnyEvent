@@ -4,6 +4,7 @@ use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 use Carp qw(confess);
+use String::CRC32;
 
 use constant +{
     HAVE_ZLIB => eval { require Compress::Zlib; 1 },
@@ -18,8 +19,7 @@ sub new {
     my $class = shift;
     my $self  = bless {
         compess_threshold => 10_000,
-        hashing_algorithm => undef,
-        hashing_algorithm_class => 'Modulo',
+        hash_cb => \&_modulo_hasher,
         protocol => undef,
         protocol_class => 'Text',
         servers => undef,
@@ -34,23 +34,8 @@ sub new {
     }, $class;
 
     $self->{protocol} ||= $self->_build_protocol;
-    $self->{hashing_algorithm} ||= $self->_build_hashing_algorithm;
 
     return $self;
-}
-
-sub _build_hashing_algorithm {
-    my $self = shift;
-    my $h_class = $self->{hashing_algorithm_class};
-    if ($h_class !~ s/^\+//) {
-        $h_class = "Cache::Memcached::AnyEvent::Hash::$h_class";
-    }
-
-    $h_class =~ s/[^\w:_]//g; # cleanse
-
-    eval "require $h_class";
-    confess if $@;
-    return $h_class->new();
 }
 
 sub _build_protocol {
@@ -82,7 +67,7 @@ EOSUB
         confess if $@;
     }
 
-    foreach my $attr qw(protocol hashing_algorithm) {
+    foreach my $attr qw(protocol) {
         eval <<EOSUB;
             sub $attr {
                 my \$self = shift;
@@ -295,7 +280,7 @@ sub DESTROY {
 sub get_handle_for {
     my ($self, $key) = @_;
     my $servers   = $self->{_active_servers};
-    my $i         = $self->hashing_algorithm->hash($key, $self);
+    my $i         = $self->{hash_cb}->($key, $self);
     my $handle    = $self->get_handle( $servers->[ $i ] );
     if (! $handle) {
         die "Could not find handle for $key";
@@ -368,6 +353,13 @@ sub prepare_value {
 
     return ($value, $len, $flags, $exptime);
 }
+
+sub _modulo_hasher {
+    my ($key, $memcached) = @_;
+    my $count = $memcached->{_active_server_count};
+    return ((String::CRC32::crc32($key) >> 16) & 0x7fff) % $count;
+}
+
 
 1;
 
@@ -442,10 +434,6 @@ explicitly.
 =head2 get_handle( $host_port )
 
 =head2 get_multi(\@keys, $cb->(\%values));
-
-=head2 hashing_algorithm($object)
-
-=head2 hashing_algorithm_class($class)
 
 =head2 incr($key, $delta[, $initial], $cb->($value))
 
