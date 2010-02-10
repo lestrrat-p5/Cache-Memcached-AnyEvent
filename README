@@ -67,8 +67,7 @@ METHODS
   stats($cmd, $cb->(\%stats))
   version($cb->(\%result))
 TODO
-    append/prepend are not yet implemented.
-    I couldn't find a binary stats command spec
+    Binary stats is not yet implemented.
 
 AUTHOR
     Daisuke Maki "<daisuke@endeworks.jp>"
