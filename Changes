@@ -1,6 +1,12 @@
 Changes
 =======
 
+0.00005 - 09 Feb 2010
+    * Refactor queue usage, which significantly speeds things up
+    * Remove get_server and get_server_count
+    * Handle when arbitrary servers are unreacheable
+    * Fix t/200_stats.t to work when there are no memcached servers up
+
 0.00004 - 09 Feb 2010
     * Allow hashrefs to the constructor
     * Minor tweaks
