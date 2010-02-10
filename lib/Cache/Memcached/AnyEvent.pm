@@ -469,6 +469,16 @@ Alias to delete
 
 =head2 version($cb->(\%result))
 
+=head1 TODO
+
+=over 4
+
+=item append/prepend are not yet implemented.
+
+=item I couldn't find a binary stats command spec
+
+=back
+
 =head1 AUTHOR
 
 Daisuke Maki C<< <daisuke@endeworks.jp> >>
