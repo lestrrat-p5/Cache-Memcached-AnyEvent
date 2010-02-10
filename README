@@ -55,8 +55,6 @@ METHODS
   get($key, $cb->($value))
   get_handle( $host_port )
   get_multi(\@keys, $cb->(\%values));
-  hashing_algorithm($object)
-  hashing_algorithm_class($class)
   incr($key, $delta[, $initial], $cb->($value))
   protocol($object)
   protocol_class($class)
