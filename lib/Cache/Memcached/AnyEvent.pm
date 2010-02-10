@@ -185,9 +185,8 @@ sub delete {
 }
 
 sub get {
-    my ($self, @args) = @_;
-    my $cb = pop @args if ref $args[-1] eq 'CODE';
-    $self->push_queue( $self->protocol, 'get_multi', 'single', \@args, $cb );
+    my ($self, $key, $cb) = @_;
+    $self->push_queue( $self->protocol, 'get_multi', 'single', [$key], $cb );
 }
 
 sub get_handle { shift->{_server_handles}->{ $_[0] } }
@@ -195,7 +194,7 @@ sub get_handle { shift->{_server_handles}->{ $_[0] } }
 sub get_multi {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
-    $self->push_queue( $self->protocol, 'get_multi', 'multi', \@args, $cb );
+    $self->push_queue( $self->protocol, 'get_multi', 'multi', @args, $cb );
 }
 
 sub incr {

@@ -36,7 +36,7 @@ my @callbacks = (
     sub { my ($memd, $cv) = @_; $memd->decr($key, 100, sub { is($_[0], 0, 'Decr below zero'); $cv->end }); },
     sub { my ($memd, $cv) = @_; $memd->decr($key, 100, sub { is($_[0], 0, 'Decr below zero returns true value'); $cv->end }); },
     sub { my ($memd, $cv) = @_; $memd->get($key, sub { is($_[0], 0, 'Fetch'); $cv->end }); },
-    sub { my ($memd, $cv) = @_; $memd->get_multi(sub { ok($_[0], 'get_multi() with empty list'); $cv->end }); },
+    sub { my ($memd, $cv) = @_; $memd->get_multi([], sub { ok($_[0], 'get_multi() with empty list'); $cv->end }); },
     sub {
         my ($memd, $cv) = @_;
         my $xcv = AE::cv { $cv->end };
@@ -47,7 +47,7 @@ my @callbacks = (
     },
     sub {
         my ($memd, $cv) = @_;
-        $memd->get_multi(@keys, sub {
+        $memd->get_multi(\@keys, sub {
             my $h = shift;
             foreach my $key (@keys) {
                 is($h->{$key}, $key, "Key $key match");
