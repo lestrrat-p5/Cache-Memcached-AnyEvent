@@ -10,4 +10,6 @@ requires 'String::CRC32'; # sorry, required
 
 recommends 'Compress::Zlib';
 
+readme_from 'lib/Cache/Memcached/AnyEvent.pm';
+
 WriteAll;
