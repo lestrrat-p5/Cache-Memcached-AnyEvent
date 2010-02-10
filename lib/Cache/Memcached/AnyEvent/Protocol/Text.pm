@@ -6,7 +6,7 @@ use base 'Cache::Memcached::AnyEvent::Protocol';
     my $generator = sub {
         my $cmd = shift;
         return sub {
-            my ($guard, $self, $memcached, $key, $value, $initial, $cb) = @_;
+            my ($self, $guard, $memcached, $key, $value, $initial, $cb) = @_;
             my $fq_key = $memcached->prepare_key( $key );
             my $handle = $memcached->get_handle_for( $fq_key );
         
@@ -29,113 +29,102 @@ use base 'Cache::Memcached::AnyEvent::Protocol';
         }
     };
 
-    sub _build_decr_cb {
-        my $self = shift;
-        $generator->("decr");
-    }
+    *decr = $generator->("decr");
+    *incr = $generator->("incr");
+}
 
-    sub _build_incr_cb {
-        my $self = shift;
-        $generator->("incr");
+sub delete {
+    my ($self, $guard, $memcached, $key, $noreply, $cb) = @_;
+
+    my $fq_key = $memcached->prepare_key( $key );
+    my $handle = $memcached->get_handle_for( $key );
+
+    my @command = (delete => $key);
+    $noreply = 0; # XXX - FIXME
+    if ($noreply) {
+        push @command, "noreply";
+    }
+    $handle->push_write(join(' ', @command) . "\r\n");
+    if (! $noreply) {
+        $handle->push_read(regex => qr{\r\n}, sub {
+            undef $guard;
+            my $data = $_[1];
+            my $success = $data =~ /^DELETED\r\n/;
+            $cb->($success) if $cb;
+        });
     }
 }
 
-sub _build_delete_cb {
-    return sub {
-        my ($guard, $self, $memcached, $key, $noreply, $cb) = @_;
+sub get_multi {
+    my ($self, $guard, $memcached, $type, $keys, $cb, $cb_caller) = @_;
+    my $cv = $type eq 'single' ?
+        AE::cv {
+            undef $guard;
+            my ($rv, $msg) = $_[0]->recv;
+            if ($rv) {
+                ($rv) = values %$rv;
+            }
+            $cb->($rv, $msg);
+        } :
+        AE::cv {
+            undef $guard;
+            $cb->( $_[0]->recv );
+        }
+    ;
 
+    if (scalar @$keys == 0) {
+        $cv->send({}, "no keys speficied");
+        return;
+    }
+
+    my $count = $memcached->{_active_server_count};
+    my @keysinserver;
+    foreach my $key (@$keys) {
         my $fq_key = $memcached->prepare_key( $key );
-        my $handle = $memcached->get_handle_for( $key );
-
-        my @command = (delete => $key);
-        $noreply = 0; # XXX - FIXME
-        if ($noreply) {
-            push @command, "noreply";
+        my $hash   = $memcached->{hashing_algorithm}->hash($fq_key);
+        my $i      = $hash % $count;
+        my $handle = $memcached->get_handle( $memcached->{_active_servers}->[$i] );
+        my $list = $keysinserver[ $i ];
+        if (! $list) {
+            $keysinserver[ $i ] = $list = [ $handle ];
         }
-        $handle->push_write(join(' ', @command) . "\r\n");
-        if (! $noreply) {
-            $handle->push_read(regex => qr{\r\n}, sub {
-                undef $guard;
-                my $data = $_[1];
-                my $success = $data =~ /^DELETED\r\n/;
-                $cb->($success) if $cb;
-            });
-        }
-    };
-}
-
-sub _build_get_multi_cb {
-    return sub {
-        my ($guard, $self, $memcached, $type, $keys, $cb, $cb_caller) = @_;
-        my $cv = $type eq 'single' ?
-            AE::cv {
-                undef $guard;
-                my ($rv, $msg) = $_[0]->recv;
-                if ($rv) {
-                    ($rv) = values %$rv;
-                }
-                $cb->($rv, $msg);
-            } :
-            AE::cv {
-                undef $guard;
-                $cb->( $_[0]->recv );
-            }
-        ;
-
-        if (scalar @$keys == 0) {
-            $cv->send({}, "no keys speficied");
-            return;
-        }
-
-        my $count = $memcached->get_server_count();
-        my @keysinserver;
-        foreach my $key (@$keys) {
-            my $fq_key = $memcached->prepare_key( $key );
-            my $hash   = $memcached->{hashing_algorithm}->hash($fq_key);
-            my $i      = $hash % $count;
-            my $handle = $memcached->get_handle( $memcached->get_server($i) );
-            my $list = $keysinserver[ $i ];
-            if (! $list) {
-                $keysinserver[ $i ] = $list = [ $handle ];
-            }
-            push @$list, $fq_key;
-        }
+        push @$list, $fq_key;
+    }
    
-        my %rv;
-        $cv->begin( sub { $_[0]->send(\%rv) } );
-        for my $i (0..$#keysinserver) {
-            next unless $keysinserver[$i];
-            my ($handle, @keylist) = @{$keysinserver[$i]};
-            $handle->push_write( "get @keylist\r\n" );
-            my $code; $code = sub {
-                my ($handle, $line) = @_;
-                if ($line =~ /^END(?:\r\n)?$/) {
-                    undef $code;
-                    $cv->end;
-                } elsif ($line =~ /^VALUE (\S+) (\S+) (\S+)(?: (\S+))?/)  {
-                    my ($rkey, $rflags, $rsize, $rcas) = ($1, $2, $3, $4);
-                    $handle->push_read(chunk => $rsize, sub {
-                        my ($key, $data) = $memcached->decode_key_value($rkey, $rflags, $_[1]);
-                        $rv{ $key } = $data; # XXX whatabout CAS?
-                        $handle->push_read(regex => qr{\r\n}, cb => sub { "noop" });
-                        $handle->push_read(line => $code);
-                    } );
-                } else {
-                    confess("Unexpected line $line");
-                }
-            };
-            $cv->begin;
-            $handle->push_read(line => $code);
-        }
-        $cv->end;
-    };
+    my %rv;
+    $cv->begin( sub { $_[0]->send(\%rv) } );
+    for my $i (0..$#keysinserver) {
+        next unless $keysinserver[$i];
+        my ($handle, @keylist) = @{$keysinserver[$i]};
+        $handle->push_write( "get @keylist\r\n" );
+        my $code; $code = sub {
+            my ($handle, $line) = @_;
+            if ($line =~ /^END(?:\r\n)?$/) {
+                undef $code;
+                $cv->end;
+            } elsif ($line =~ /^VALUE (\S+) (\S+) (\S+)(?: (\S+))?/)  {
+                my ($rkey, $rflags, $rsize, $rcas) = ($1, $2, $3, $4);
+                $handle->push_read(chunk => $rsize, sub {
+                    my ($key, $data) = $memcached->decode_key_value($rkey, $rflags, $_[1]);
+                    $rv{ $key } = $data; # XXX whatabout CAS?
+                    $handle->push_read(regex => qr{\r\n}, cb => sub { "noop" });
+                    $handle->push_read(line => $code);
+                } );
+            } else {
+                confess("Unexpected line $line");
+            }
+        };
+        $cv->begin;
+        $handle->push_read(line => $code);
+    }
+    $cv->end;
 }
 
 {
     my $generator = sub {
         my $cmd = shift;
         sub {
-            my ($guard, $self, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
+            my ($self, $guard, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
             my $fq_key = $memcached->prepare_key( $key );
             my $handle = $memcached->get_handle_for( $fq_key );
 
@@ -151,66 +140,52 @@ sub _build_get_multi_cb {
         };
     };
 
-    sub _build_add_cb {
-        my $self = shift;
-        return $generator->( "add" );
-    }
-
-    sub _build_replace_cb {
-        my $self = shift;
-        return $generator->( "replace" );
-    }
-
-    sub _build_set_cb {
-        my $self = shift;
-        return $generator->( "set" );
-    }
+    *add = $generator->("add");
+    *replace = $generator->("replace");
+    *set = $generator->("set");
 }
 
-sub _build_stats_cb {
-    return sub {
-        my ($guard, $self, $memcached, $name, $cb) = @_;
+sub stats {
+    my ($self, $guard, $memcached, $name, $cb) = @_;
 
-        my $cv = AE::cv {
-            undef $guard;
-            $cb->( $_[0]->recv );
+    my $cv = AE::cv {
+        undef $guard;
+        $cb->( $_[0]->recv );
+    };
+
+    my %rv;
+    $cv->begin(sub { $_[0]->send(\%rv) });
+    foreach my $server (@{ $memcached->{_active_servers} }) {
+        my $handle = $memcached->get_handle( $server );
+
+        $handle->push_write( $name ? "stats $name\r\n" : "stats\r\n" );
+        my $code; $code = sub {
+            my ($handle, $line) = @_;
+            if ($line eq 'END') {
+                $cv->end;
+            } elsif ( $line =~ /^STAT (\S+) (\S+)$/) {
+                $rv{ $server }->{ $1 } = $2;
+                $handle->push_read( line => $code );
+            }
         };
-
-        my %rv;
-        $cv->begin(sub { $_[0]->send(\%rv) });
-        foreach my $server (@{ $memcached->servers }) {
-            my $handle = $memcached->get_handle( $server );
-
-            $handle->push_write( $name ? "stats $name\r\n" : "stats\r\n" );
-            my $code; $code = sub {
-                my ($handle, $line) = @_;
-                if ($line eq 'END') {
-                    $cv->end;
-                } elsif ( $line =~ /^STAT (\S+) (\S+)$/) {
-                    $rv{ $server }->{ $1 } = $2;
-                    $handle->push_read( line => $code );
-                }
-            };
-            $cv->begin;
-            $handle->push_read( line => $code );
-        }
-        $cv->end;
+        $cv->begin;
+        $handle->push_read( line => $code );
     }
+    $cv->end;
 }
 
-sub _build_version_cb {
-    return sub {
-        my ($guard, $self, $memcached, $cb) = @_;
+sub version {
+    my ($self, $guard, $memcached, $cb) = @_;
 
-        $memcached->stats( "", sub {
-            my $rv = shift;
-            my %version = map {
-                ($_ => $rv->{$_}->{version})
-            } keys %$rv;
+    # don't store guard, as we're issuing a new guarded command
+    $memcached->stats( "", sub {
+        my $rv = shift;
+        my %version = map {
+            ($_ => $rv->{$_}->{version})
+        } keys %$rv;
 
-            $cb->(\%version);
-        } );
-    }
+        $cb->(\%version);
+    } );
 }
 
 1;

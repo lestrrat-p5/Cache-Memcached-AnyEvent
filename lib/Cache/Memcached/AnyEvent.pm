@@ -25,6 +25,8 @@ sub new {
         servers => undef,
         namespace => undef,
         @_ == 1 ? %{$_[0]} : @_,
+        _active_servers => [],
+        _active_server_count => 0,
         _is_connected => undef,
         _is_connecting => undef,
         _queue => [],
@@ -117,6 +119,8 @@ sub connect {
 
     $self->{_is_connecting} = 1;
 
+    $self->{_active_servers} = [];
+    $self->{_active_server_count} = 0;
     my %handles;
     my $connect_cv = AE::cv {
         $self->{_server_handles} = \%handles;
@@ -133,24 +137,32 @@ sub connect {
 
         my $guard; $guard = tcp_connect $host, $port, sub {
             my ($fh, $host, $port) = @_;
+
             undef $guard; # thanks, buddy
+            if (! $fh) {
+                # connect failed
+                warn "failed to conncet to $host:$port";
+            } else {
+                my $h; $h = AnyEvent::Handle->new(
+                    fh => $fh,
+                    on_eof => sub {
+                        my $h = delete $handles{$server};
+                        $h->destroy();
+                        undef $h;
+                    },
+                    on_error => sub {
+                        my $h = delete $handles{$server};
+                        $h->destroy();
+                        undef $h;
+                    },
+                );
 
-            my $h; $h = AnyEvent::Handle->new(
-                fh => $fh,
-                on_eof => sub {
-                    my $h = delete $handles{$server};
-                    $h->destroy();
-                    undef $h;
-                },
-                on_error => sub {
-                    my $h = delete $handles{$server};
-                    $h->destroy();
-                    undef $h;
-                },
-            );
+                push @{$self->{_active_servers}}, $server;
+                $self->{_active_server_count}++;
+                $handles{ $server } = $h;
+                $self->protocol->prepare_handle( $fh );
+            }
 
-            $handles{ $server } = $h;
-            $self->protocol->prepare_handle( $fh );
             $connect_cv->end;
         };
     }
@@ -160,27 +172,28 @@ sub add {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
     my ($key, $value, $exptime, $noreply) = @args;
-    $self->push_queue( $self->protocol->{add_cb}, $self->protocol, $self, $key, $value, $exptime, $noreply, $cb );
+    $self->push_queue( 
+        $self->protocol, 'add', $key, $value, $exptime, $noreply, $cb );
 }
 
 sub decr {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
     my ($key, $value, $initial) = @args;
-    $self->push_queue( $self->protocol->{decr_cb}, $self->protocol, $self, $key, $value, $initial, $cb );
+    $self->push_queue( $self->protocol, 'decr', $key, $value, $initial, $cb );
 }
 
 sub delete {
     my ($self, @args) = @_;
     my $cb       = pop @args if ref $args[-1] eq 'CODE';
     my $noreply  = !defined $cb;
-    $self->push_queue( $self->protocol->{delete_cb}, $self->protocol, $self, @args, $noreply, $cb );
+    $self->push_queue( $self->protocol, 'delete', @args, $noreply, $cb );
 }
 
 sub get {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
-    $self->push_queue( $self->protocol->{get_multi_cb}, $self->protocol, $self, 'single', \@args, $cb );
+    $self->push_queue( $self->protocol, 'get_multi', 'single', \@args, $cb );
 }
 
 sub get_handle { shift->{_server_handles}->{ $_[0] } }
@@ -188,50 +201,46 @@ sub get_handle { shift->{_server_handles}->{ $_[0] } }
 sub get_multi {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
-    $self->push_queue( $self->protocol->{get_multi_cb}, $self->protocol, $self, 'multi', \@args, $cb );
+    $self->push_queue( $self->protocol, 'get_multi', 'multi', \@args, $cb );
 }
-
-sub get_server { shift->{servers}->[ $_[0] ] }
-sub get_server_count { scalar @{ shift->{servers} } }
 
 sub incr {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
     my ($key, $value, $initial) = @args;
-    $self->push_queue( $self->protocol->{incr_cb}, $self->protocol, $self, $key, $value, $initial, $cb );
+    $self->push_queue( $self->protocol, 'incr', $key, $value, $initial, $cb );
 }
 
 sub replace {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
     my ($key, $value, $exptime, $noreply) = @args;
-    $self->push_queue( $self->protocol->{replace_cb}, $self->protocol, $self, $key, $value, $exptime, $noreply, $cb );
+    $self->push_queue( $self->protocol, 'replace', $key, $value, $exptime, $noreply, $cb );
 }
 
 sub set {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
     my ($key, $value, $exptime, $noreply) = @args;
-    $self->push_queue( $self->protocol->{set_cb}, $self->protocol, $self, $key, $value, $exptime, $noreply, $cb);
+    $self->push_queue( $self->protocol, 'set', $key, $value, $exptime, $noreply, $cb);
 }
 
 sub stats {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
     my ($name) = @args;
-    $self->push_queue( $self->protocol->{stats_cb}, $self->protocol, $self, $name, $cb );
+    $self->push_queue( $self->protocol, 'stats', $name, $cb );
 }
 
 sub version {
     my ($self, $cb) = @_;
-    $self->push_queue( $self->protocol->{version_cb}, $self->protocol, $self, $cb);
+    $self->push_queue( $self->protocol, 'version', $cb);
 }
 
 sub push_queue {
-    my ($self, $cb, @args) = @_;
-    confess "no callback given" unless $cb;
-    push @{$self->{queue}}, [ $cb, @args ];
-    $self->drain_queue;
+    my ($self, @args) = @_;
+    push @{$self->{queue}}, [ @args ];
+    $self->drain_queue unless $self->{_is_draining};
 }
 
 sub drain_queue {
@@ -249,15 +258,16 @@ sub drain_queue {
     }
 
     if (my $next = shift @{$self->{queue}}) {
-        my ($cb, @args) = @$next;
+        my ($proto, $method, @args) = @$next;
         $self->{_is_draining}++;
-        $cb->(AnyEvent::Util::guard {
+        my $guard = AnyEvent::Util::guard {
             my $t; $t = AE::timer 0, 0, sub {
                 $self->{_is_draining}--;
                 undef $t;
                 $self->drain_queue;
             };
-        }, @args);
+        };
+        $proto->$method($guard, $self, @args);
     }
 }
 
@@ -284,8 +294,8 @@ sub DESTROY {
     
 sub get_handle_for {
     my ($self, $key) = @_;
-    my $servers   = $self->{servers};
-    my $count     = scalar @$servers;
+    my $servers   = $self->{_active_servers};
+    my $count     = $self->{_active_server_count};
     my $hash      = $self->hashing_algorithm->hash($key);
     my $i         = $hash % $count;
     my $handle    = $self->get_handle( $servers->[ $i ] );
@@ -434,10 +444,6 @@ explicitly.
 =head2 get_handle( $host_port )
 
 =head2 get_multi(\@keys, $cb->(\%values));
-
-=head2 get_server($i)
-
-=head2 get_server_count()
 
 =head2 hashing_algorithm($object)
 

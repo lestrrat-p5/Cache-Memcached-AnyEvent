@@ -277,7 +277,7 @@ sub _status_str {
         my ($cmd, $opcode) = @_;
 
         sub {
-            my ($guard, $self, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
+            my ($self, $guard, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
             my $fq_key = $memcached->prepare_key( $key );
             my $handle = $memcached->get_handle_for( $fq_key );
 
@@ -294,98 +294,83 @@ sub _status_str {
         }
     };
 
-    sub _build_add_cb {
-        my $self = shift;
-        return $generator->("add", MEMD_ADD);
-    }
-
-    sub _build_replace_cb {
-        my $self = shift;
-        return $generator->("replace", MEMD_REPLACE);
-    }
-
-    sub _build_set_cb {
-        my $self = shift;
-        return $generator->("set", MEMD_SET);
-    }
+    *add = $generator->("add", MEMD_ADD);
+    *replace = $generator->("replace", MEMD_REPLACE);
+    *set = $generator->("set", MEMD_SET);
 }
 
-sub _build_delete_cb {
-    return sub {
-        my ($guard, $self, $memcached, $key, $noreply, $cb) = @_;
+sub delete {
+    my ($self, $guard, $memcached, $key, $noreply, $cb) = @_;
 
-        my $fq_key = $memcached->prepare_key($key);
-        my $handle = $memcached->get_handle_for($fq_key);
+    my $fq_key = $memcached->prepare_key($key);
+    my $handle = $memcached->get_handle_for($fq_key);
 
-        $handle->push_write( memcached_bin => MEMD_DELETE, $fq_key );
-        $handle->push_read( memcached_bin => sub {
+    $handle->push_write( memcached_bin => MEMD_DELETE, $fq_key );
+    $handle->push_read( memcached_bin => sub {
+        undef $guard;
+        $cb->(@_);
+    } );
+}
+
+sub get_multi {
+    my ($self, $guard, $memcached, $type, $keys, $cb, $cb_caller) = @_;
+
+    # organize the keys by handle
+    my %handle2keys;
+        
+    foreach my $key (@$keys) {
+        my $fq_key = $memcached->prepare_key( $key );
+        my $handle = $memcached->get_handle_for( $fq_key );
+        my $list = $handle2keys{ $handle };
+        if (! $list) {
+            $handle2keys{$handle} = [ $handle, $fq_key ];
+        } else {
+            push @$list, $fq_key;
+        }
+    }
+
+    my $cv = $type eq 'single' ?
+        AE::cv {
             undef $guard;
-            $cb->(@_);
-        } );
-    }
-}
-
-sub _build_get_multi_cb {
-    return sub {
-        my ($guard, $self, $memcached, $type, $keys, $cb, $cb_caller) = @_;
-
-        # organize the keys by handle
-        my %handle2keys;
-            
-        foreach my $key (@$keys) {
-            my $fq_key = $memcached->prepare_key( $key );
-            my $handle = $memcached->get_handle_for( $fq_key );
-            my $list = $handle2keys{ $handle };
-            if (! $list) {
-                $handle2keys{$handle} = [ $handle, $fq_key ];
-            } else {
-                push @$list, $fq_key;
+            my ($rv, $msg) = $_[0]->recv;
+            if ($rv) {
+                ($rv) = values %$rv;
             }
+            $cb->($rv, $msg);
+        } :
+        AE::cv {
+            undef $guard;
+            $cb->( $_[0]->recv );
         }
+    ;
 
-        my $cv = $type eq 'single' ?
-            AE::cv {
-                undef $guard;
-                my ($rv, $msg) = $_[0]->recv;
-                if ($rv) {
-                    ($rv) = values %$rv;
+    my %result;
+    $cv->begin( sub { $_[0]->send(\%result) } );
+    foreach my $list (values %handle2keys) {
+        my ($handle, @keys) = @$list;
+        foreach my $key ( @keys ) {
+            $handle->push_write(memcached_bin => MEMD_GETK, $key);
+            $cv->begin;
+            $handle->push_read(memcached_bin => sub {
+                my $msg = shift;
+
+                my ($flags, $exptime) = unpack('N2', $msg->{extra});
+                if (exists $msg->{key} && exists $msg->{value}) {
+                    my ($key, $value) = $memcached->decode_key_value($key, $flags, $msg->{value} );
+                    $result{ $key } = $value;
                 }
-                $cb->($rv, $msg);
-            } :
-            AE::cv {
-                undef $guard;
-                $cb->( $_[0]->recv );
-            }
-        ;
-
-        my %result;
-        $cv->begin( sub { $_[0]->send(\%result) } );
-        foreach my $list (values %handle2keys) {
-            my ($handle, @keys) = @$list;
-            foreach my $key ( @keys ) {
-                $handle->push_write(memcached_bin => MEMD_GETK, $key);
-                $cv->begin;
-                $handle->push_read(memcached_bin => sub {
-                    my $msg = shift;
-
-                    my ($flags, $exptime) = unpack('N2', $msg->{extra});
-                    if (exists $msg->{key} && exists $msg->{value}) {
-                        my ($key, $value) = $memcached->decode_key_value($key, $flags, $msg->{value} );
-                        $result{ $key } = $value;
-                    }
-                    $cv->end;
-                });
-            }
+                $cv->end;
+            });
         }
-        $cv->end;
-    };
+    }
+    $cv->end;
 }
 
 {
     my $generator = sub {
         my ($opcode) = @_;
         return sub {
-            my ($guard, $self, $memcached, $key, $value, $initial, $cb) = @_;
+            my ($self, $guard, $memcached, $key, $value, $initial, $cb) = @_;
     
             $value ||= 1;
             my $expires = defined $initial ? 0 : 0xffffffff;
@@ -415,33 +400,26 @@ sub _build_get_multi_cb {
         }
     };
 
-    sub _build_incr_cb {
-        return $generator->(MEMD_INCREMENT);
-    }
-
-    sub _build_decr_cb {
-        return $generator->(MEMD_DECREMENT);
-    }
+    *incr = $generator->(MEMD_INCREMENT);
+    *decr = $generator->(MEMD_DECREMENT);
 };
 
-sub _build_version_cb {
-    return sub {
-        my ($guard, $self, $memcached, $cb) = @_;
+sub version {
+    my ($self, $guard,$memcached, $cb) = @_;
 
-        my %ret;
-        my $cv = AE::cv { $cb->( \%ret ); undef %ret };
-        while (my ($host_port, $handle) = each %{ $memcached->{_server_handles} }) {
-            $handle->push_write(memcached_bin => MEMD_VERSION);
-            $cv->begin;
-            $handle->push_read(memcached_bin => sub {
-                my $msg = shift;
-                undef $guard;
-                my $value = unpack('a*', $msg->{value});
+    my %ret;
+    my $cv = AE::cv { $cb->( \%ret ); undef %ret };
+    while (my ($host_port, $handle) = each %{ $memcached->{_server_handles} }) {
+        $handle->push_write(memcached_bin => MEMD_VERSION);
+        $cv->begin;
+        $handle->push_read(memcached_bin => sub {
+            my $msg = shift;
+            undef $guard;
+            my $value = unpack('a*', $msg->{value});
 
-                $ret{ $host_port } = $value;
-                $cv->end;
-            });
-        }
+            $ret{ $host_port } = $value;
+            $cv->end;
+        });
     }
 }
         
