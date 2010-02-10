@@ -1,6 +1,12 @@
 Changes
 =======
 
+0.00008 - 10 Feb 2010
+    * Remove Hash object. It's just too much
+    * Implemented append/prepend
+    * Fix weired segfault
+    * Implement on_drain callback
+
 0.00007 - 10 Feb 2010
     * Grrr, forgot to update MANIFEST.
     * No code changes
