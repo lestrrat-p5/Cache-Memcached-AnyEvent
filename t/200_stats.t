@@ -1,12 +1,10 @@
 use strict;
 use lib "t/lib";
-use Test::More tests => 2;
+use Test::More;
 use Cache::Memcached::AnyEvent::Test;
 
 my $memd = test_client() or exit;
-
-# count should be >= 4.
-use constant count => 100;
+plan tests => 2;
 
 my $cv = AE::cv;
 
