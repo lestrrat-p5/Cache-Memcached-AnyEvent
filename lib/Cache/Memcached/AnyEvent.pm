@@ -141,7 +141,7 @@ sub connect {
             undef $guard; # thanks, buddy
             if (! $fh) {
                 # connect failed
-                warn "failed to conncet to $host:$port";
+                warn "failed to connect to $server";
             } else {
                 my $h; $h = AnyEvent::Handle->new(
                     fh => $fh,
