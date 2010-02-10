@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.00006 - 09 Feb 2010
+    * Protect/fix warn message when connection fails to succeed
+    * Add tests for it
+
 0.00005 - 09 Feb 2010
     * Refactor queue usage, which significantly speeds things up
     * Remove get_server and get_server_count
