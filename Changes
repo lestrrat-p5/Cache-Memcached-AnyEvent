@@ -1,11 +1,16 @@
 Changes
 =======
 
-0.00006 - 09 Feb 2010
+0.00007 - 10 Feb 2010
+    * Grrr, forgot to update MANIFEST.
+    * No code changes
+    * Add a README while we're at it
+
+0.00006 - 10 Feb 2010
     * Protect/fix warn message when connection fails to succeed
     * Add tests for it
 
-0.00005 - 09 Feb 2010
+0.00005 - 10 Feb 2010
     * Refactor queue usage, which significantly speeds things up
     * Remove get_server and get_server_count
     * Handle when arbitrary servers are unreacheable
