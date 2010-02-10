@@ -8,7 +8,17 @@ sub new {
 }
 
 sub hash {
-    return (crc32($_[1]) >> 16) & 0x7fff;
+    my ($self, $key, $memcached) = @_;
+    my $count = $memcached->{_active_server_count};
+    return ((crc32($key) >> 16) & 0x7fff) % $count;
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Cache::Memached::AnyEvent::Hash::Modulo - Default Key Hashing Strategy
+
+=cut

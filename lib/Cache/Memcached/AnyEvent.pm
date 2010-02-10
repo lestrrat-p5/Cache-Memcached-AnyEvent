@@ -295,9 +295,7 @@ sub DESTROY {
 sub get_handle_for {
     my ($self, $key) = @_;
     my $servers   = $self->{_active_servers};
-    my $count     = $self->{_active_server_count};
-    my $hash      = $self->hashing_algorithm->hash($key);
-    my $i         = $hash % $count;
+    my $i         = $self->hashing_algorithm->hash($key, $self);
     my $handle    = $self->get_handle( $servers->[ $i ] );
     if (! $handle) {
         die "Could not find handle for $key";
