@@ -484,7 +484,7 @@ Alias to delete
 
 =over 4
 
-=item append/prepend/stats are not yet implemented.
+=item Binary stats is not yet implemented.
 
 =back
 
