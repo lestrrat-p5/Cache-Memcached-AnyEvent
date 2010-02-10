@@ -62,6 +62,7 @@ SKIP: {
     my $cv = AE::cv;
     my $memd = test_client();
     $memd->protocol_class($protocol);
+
     my $t; $t = AE::timer 5, 0, sub {
         undef $t;
         skip "Could not access your server", 42;
@@ -77,11 +78,13 @@ SKIP: {
         $cv->end;
     } );
 
+    $cv->recv;
+
+    $cv = AE::cv;
     foreach my $code (@callbacks) {
         $cv->begin;
         $code->($memd, $cv);
     }
-
     $cv->recv;
 }
 }
