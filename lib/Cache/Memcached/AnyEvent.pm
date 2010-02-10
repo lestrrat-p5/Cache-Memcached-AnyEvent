@@ -102,7 +102,7 @@ sub connect {
 
     return if $self->{_is_connecting} || $self->{_is_connected};
 
-    $self->{_is_connecting} = 1;
+    $self->{_is_connecting} = {};
 
     $self->{_active_servers} = [];
     $self->{_active_server_count} = 0;
@@ -120,10 +120,11 @@ sub connect {
         my ($host, $port) = split( /:/, $server );
         $port ||= 11211;
 
-        my $guard; $guard = tcp_connect $host, $port, sub {
+print "# Connecting to $server\n";
+        $self->{_is_connecting}->{$server} = tcp_connect $host, $port, sub {
             my ($fh, $host, $port) = @_;
 
-            undef $guard; # thanks, buddy
+            delete $self->{_is_connecting}->{$server}; # thanks, buddy
             if (! $fh) {
                 # connect failed
                 warn "failed to connect to $server";
@@ -262,8 +263,11 @@ sub disconnect {
     my $handles = delete $self->{_server_handles};
     foreach my $handle ( values %$handles ) {
         if ($handle) {
-            $handle->push_shutdown();
-            $handle->destroy();
+            eval {
+                $handle->stop_read;
+                $handle->push_shutdown();
+                $handle->destroy();
+            };
         }
     }
 
