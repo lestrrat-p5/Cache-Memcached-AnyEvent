@@ -1,7 +1,11 @@
 Changes
 =======
 
-0.00008 - 10 Feb 2010
+0.00009 - 11 Feb 2010
+    * Fix docs
+    * Remove stray debug statement
+
+0.00008 - 11 Feb 2010
     * Remove Hash object. It's just too much
     * Implemented append/prepend
     * Fix weired segfault

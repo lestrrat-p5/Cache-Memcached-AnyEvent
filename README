@@ -43,7 +43,20 @@ RATIONALE
         AnyEvent::Memcached.
 
 METHODS
-  new
+  new(%args)
+    compress_threshold => $number
+    hash_cb => $cb->($key, $memcached)
+        Specify hashing coderef. Callback must return an index to the list
+        of the servers, where $key belongs to.
+
+    namespace => $namespace
+    procotol => $object
+    protocol_class => $classname
+    servers => \@servers
+        List of servers to use.
+
+    %args can also be a hashref.
+
   add($key, $value[, $exptime, $noreply], $cb->($rc))
   connect()
     Explicitly connects to each server given. You DO NOT need to call this
