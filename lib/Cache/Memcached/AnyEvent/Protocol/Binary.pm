@@ -208,9 +208,15 @@ AnyEvent::Handle::register_write_type memcached_bin => sub {
     $i1 ^= $key_length;
 
     # second 4 bytes
-    my $extra_length = defined $extras ? length($extras) : 0;
     my $i2 = 0;
-    $i2 ^= $extra_length << 24;
+    my $extra_length = 
+        ($opcode != MEMD_PREPEND && $opcode != MEMD_APPEND && defined $extras) ?
+        length($extras) :
+        0
+    ;
+    if ($extra_length) {
+        $i2 ^= $extra_length << 24;
+    }
     # $data_type and $reserved are not used currently
 
     # third 4 bytes
@@ -294,9 +300,11 @@ sub _status_str {
         }
     };
 
-    *add = $generator->("add", MEMD_ADD);
+    *add     = $generator->("add", MEMD_ADD);
     *replace = $generator->("replace", MEMD_REPLACE);
-    *set = $generator->("set", MEMD_SET);
+    *set     = $generator->("set", MEMD_SET);
+    *append  = $generator->("append", MEMD_APPEND);
+    *prepend = $generator->("prepend", MEMD_PREPEND);
 }
 
 sub delete {

@@ -220,6 +220,18 @@ sub set {
     $self->push_queue( $self->protocol, 'set', $key, $value, $exptime, $noreply, $cb);
 }
 
+sub append {
+    my ($self, @args) = @_;
+    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    $self->push_queue( $self->protocol, 'append', @args, undef, undef, $cb);
+}
+
+sub prepend {
+    my ($self, @args) = @_;
+    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    $self->push_queue( $self->protocol, 'prepend', @args, undef, undef, $cb);
+}
+
 sub stats {
     my ($self, @args) = @_;
     my $cb = pop @args if ref $args[-1] eq 'CODE';
@@ -472,9 +484,7 @@ Alias to delete
 
 =over 4
 
-=item append/prepend are not yet implemented.
-
-=item I couldn't find a binary stats command spec
+=item append/prepend/stats are not yet implemented.
 
 =back
 

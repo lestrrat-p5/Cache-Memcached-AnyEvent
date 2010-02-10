@@ -143,6 +143,8 @@ sub get_multi {
     *add = $generator->("add");
     *replace = $generator->("replace");
     *set = $generator->("set");
+    *append = $generator->("append");
+    *prepend = $generator->("prepend");
 }
 
 sub stats {

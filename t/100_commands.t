@@ -3,7 +3,7 @@ use lib "t/lib";
 use Cache::Memcached::AnyEvent::Test;
 
 my $memd = test_client() or exit;
-plan tests => 42 * 2;
+plan tests => 46 * 2;
 
 # count should be >= 4.
 use constant count => 10;
@@ -55,6 +55,26 @@ my @callbacks = (
             $cv->end;
         });
     },
+    sub {
+        my ($memd, $cv) = @_;
+        $memd->set( $key,  "abc", sub { $cv->end } );
+    },
+    sub {
+        my ($memd, $cv) = @_;
+        $memd->append( $key, 'def', sub { ok ($_[0], "append $key"); $cv->end } );
+    },
+    sub {
+        my ($memd, $cv) = @_;
+        $memd->get( $key, sub { is ($_[0], 'abcdef', "append result ok for $key"); $cv->end } );
+    },
+    sub {
+        my ($memd, $cv) = @_;
+        $memd->prepend( $key, '123', sub { ok ($_[0], "prepend $key"); $cv->end } );
+    },
+    sub {
+        my ($memd, $cv) = @_;
+        $memd->get( $key, sub { is ($_[0], '123abcdef', "prepend result ok for $key"); $cv->end } );
+    },
 );
 
 foreach my $protocol qw(Text Binary) {
@@ -83,7 +103,13 @@ SKIP: {
     $cv = AE::cv;
     foreach my $code (@callbacks) {
         $cv->begin;
-        $code->($memd, $cv);
+        eval {
+            $code->($memd, $cv);
+        };
+        if ($@) {
+            ok(0, "an error occurred: $@");
+            $cv->end;
+        }
     }
     $cv->recv;
 }
