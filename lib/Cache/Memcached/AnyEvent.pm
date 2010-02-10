@@ -120,7 +120,6 @@ sub connect {
         my ($host, $port) = split( /:/, $server );
         $port ||= 11211;
 
-print "# Connecting to $server\n";
         $self->{_is_connecting}->{$server} = tcp_connect $host, $port, sub {
             my ($fh, $host, $port) = @_;
 
@@ -439,7 +438,29 @@ get_multi and the like are not implemented yet on L<AnyEvent::Memcached>.
 
 =head1 METHODS
 
-=head2 new
+=head2 new(%args) 
+
+=over 4
+
+=item compress_threshold => $number
+
+=item hash_cb => $cb->($key, $memcached)
+
+Specify hashing coderef. Callback must return an index to the list of the servers, where C<$key> belongs to.
+
+=item namespace => $namespace
+
+=item procotol => $object
+
+=item protocol_class => $classname
+
+=item servers => \@servers
+
+List of servers to use.
+
+=back
+
+C<%args> can also be a hashref.
 
 =head2 add($key, $value[, $exptime, $noreply], $cb->($rc))
 
