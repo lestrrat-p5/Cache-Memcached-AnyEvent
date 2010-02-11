@@ -55,22 +55,36 @@ sub delete {
     }
 }
 
-sub get_multi {
-    my ($self, $guard, $memcached, $type, $keys, $cb, $cb_caller) = @_;
-    my $cv = $type eq 'single' ?
-        AE::cv {
-            undef $guard;
-            my ($rv, $msg) = $_[0]->recv;
-            if ($rv) {
-                ($rv) = values %$rv;
-            }
-            $cb->($rv, $msg);
-        } :
-        AE::cv {
-            undef $guard;
-            $cb->( $_[0]->recv );
+sub get {
+    my ($self, $guard, $memcached, $key, $cb) = @_;
+
+    my $fq_key = $memcached->prepare_key( $key );
+    my $handle = $memcached->get_handle_for( $fq_key );
+
+    $handle->push_write( "get $fq_key\r\n" );
+    $handle->push_read( line => sub {
+        my ($handle, $line) = @_;
+        if ($line =~ /^VALUE (\S+) (\S+) (\S+)(?: (\S+))?/)  {
+            my ($rkey, $rflags, $rsize, $rcas) = ($1, $2, $3, $4);
+            $handle->push_read(chunk => $rsize, sub {
+                my ($key, $data) = $memcached->decode_key_value($rkey, $rflags, $_[1]);
+                $handle->push_read(regex => qr{END\r\n}, cb => sub {
+                    $cb->( $data );
+                    undef $guard;
+                } );
+            });
+        } else {
+            confess("Unexpected line $line");
         }
-    ;
+    } );
+}
+
+sub get_multi {
+    my ($self, $guard, $memcached, $keys, $cb) = @_;
+    my $cv = AE::cv {
+        undef $guard;
+        $cb->( $_[0]->recv );
+    };
 
     if (scalar @$keys == 0) {
         $cv->send({}, "no keys speficied");
@@ -78,24 +92,21 @@ sub get_multi {
     }
 
     my $count = $memcached->{_active_server_count};
-    my @keysinserver;
+    my %keysinserver;
     foreach my $key (@$keys) {
         my $fq_key = $memcached->prepare_key( $key );
-        my $hash   = $memcached->{hash_cb}->($fq_key, $memcached);
-        my $i      = $hash % $count;
-        my $handle = $memcached->get_handle( $memcached->{_active_servers}->[$i] );
-        my $list = $keysinserver[ $i ];
+        my $handle = $memcached->get_handle_for( $fq_key );
+        my $list = $keysinserver{ $handle };
         if (! $list) {
-            $keysinserver[ $i ] = $list = [ $handle ];
+            $keysinserver{ $handle } = $list = [ $handle, $fq_key ];
         }
         push @$list, $fq_key;
     }
    
     my %rv;
     $cv->begin( sub { $_[0]->send(\%rv) } );
-    for my $i (0..$#keysinserver) {
-        next unless $keysinserver[$i];
-        my ($handle, @keylist) = @{$keysinserver[$i]};
+    foreach my $data (values %keysinserver) {
+        my ($handle, @keylist) = @$data;
         $handle->push_write( "get @keylist\r\n" );
         my $code; $code = sub {
             my ($handle, $line) = @_;

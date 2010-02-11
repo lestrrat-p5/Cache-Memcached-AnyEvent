@@ -320,12 +320,29 @@ sub delete {
     } );
 }
 
+sub get {
+    my ($self, $guard, $memcached, $key, $cb) = @_;
+
+    my $fq_key = $memcached->prepare_key( $key );
+    my $handle = $memcached->get_handle_for( $fq_key );
+    $handle->push_write(memcached_bin => MEMD_GETK, $fq_key);
+    $handle->push_read(memcached_bin => sub {
+        my $msg = shift;
+        my ($flags, $exptime) = unpack('N2', $msg->{extra});
+        if (exists $msg->{key} && exists $msg->{value}) {
+            my ($key, $value) = $memcached->decode_key_value($key, $flags, $msg->{value} );
+            undef $guard;
+            $cb->($value);
+        }
+    });
+}
+
 sub get_multi {
-    my ($self, $guard, $memcached, $type, $keys, $cb, $cb_caller) = @_;
+    my ($self, $guard, $memcached, $keys, $cb, $cb_caller) = @_;
 
     # organize the keys by handle
     my %handle2keys;
-        
+
     foreach my $key (@$keys) {
         my $fq_key = $memcached->prepare_key( $key );
         my $handle = $memcached->get_handle_for( $fq_key );
@@ -337,20 +354,10 @@ sub get_multi {
         }
     }
 
-    my $cv = $type eq 'single' ?
-        AE::cv {
-            undef $guard;
-            my ($rv, $msg) = $_[0]->recv;
-            if ($rv) {
-                ($rv) = values %$rv;
-            }
-            $cb->($rv, $msg);
-        } :
-        AE::cv {
-            undef $guard;
-            $cb->( $_[0]->recv );
-        }
-    ;
+    my $cv = AE::cv {
+        undef $guard;
+        $cb->( $_[0]->recv );
+    };
 
     my %result;
     $cv->begin( sub { $_[0]->send(\%result) } );
