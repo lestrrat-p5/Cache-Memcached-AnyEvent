@@ -68,35 +68,28 @@ BEGIN {
 EOSUB
         Carp::confess if $@;
     }
+}
 
-    foreach my $attr qw(protocol) {
-        eval <<EOSUB;
-            sub $attr {
-                my \$self = shift;
-                my \$ret  = \$self->{$attr};
-                if (\@_) {
-                    my \$obj = shift;
-                    my \$class = ref \$obj;
-                    \$self->{$attr} = \$obj;
-                    \$self->{${attr}_class} = \$class;
-                }
-                return \$ret;
-            }
-EOSUB
-        Carp::confess if $@;
-        eval <<EOSUB;
-            sub ${attr}_class {
-                my \$self = shift;
-                my \$ret  = \$self->{${attr}_class};
-                if (\@_) {
-                    \$self->{${attr}_class} = shift;
-                    \$self->{$attr} = \$self->_build_${attr};
-                }
-                return \$ret;
-            }
-EOSUB
-        Carp::confess if $@;
+sub protocol {
+    my $self = shift;
+    my $ret  = $self->{protocol};
+    if (@_) {
+        my $obj = shift;
+        my $class = ref $obj;
+        $self->{protocol} = $obj;
+        $self->{protocol_class} = $class;
     }
+    return $ret;
+}
+
+sub protocol_class {
+    my $self = shift;
+    my $ret  = $self->{protocol_class};
+    if (@_) {
+        $self->{protocol_class} = shift;
+        $self->{protocol} = $self->_build_protocol;
+    }
+    return $ret;
 }
 
 sub connect_one {
