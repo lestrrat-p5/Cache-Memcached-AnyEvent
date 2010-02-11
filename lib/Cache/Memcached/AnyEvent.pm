@@ -18,10 +18,12 @@ our $VERSION = '0.00010';
 sub new {
     my $class = shift;
     my $self  = bless {
+        auto_reconnect => 5,
         compess_threshold => 10_000,
         hash_cb => \&_modulo_hasher,
         protocol => undef,
         protocol_class => 'Text',
+        reconnect_delay => 5,
         servers => undef,
         namespace => undef,
         @_ == 1 ? %{$_[0]} : @_,
@@ -53,7 +55,7 @@ sub _build_protocol {
 }
 
 BEGIN {
-    foreach my $attr qw(compress_threshold servers namespace) {
+    foreach my $attr qw(auto_reconncet compress_threshold reconnect_delay servers namespace) {
         eval <<EOSUB;
             sub $attr {
                 my \$self = shift;
@@ -97,68 +99,88 @@ EOSUB
     }
 }
 
+sub connect_one {
+    my ($self, $server, $cv) = @_;
+
+    return if $self->{_is_connecting}->{$server};
+
+    $cv->begin if $cv;
+    my ($host, $port) = split( /:/, $server );
+    $port ||= 11211;
+
+    $self->{_is_connecting}->{$server} = tcp_connect $host, $port, sub {
+        my ($fh, $host, $port) = @_;
+
+        delete $self->{_is_connecting}->{$server}; # thanks, buddy
+        if (! $fh) {
+            # connect failed
+            warn "failed to connect to $server";
+            if ($self->{auto_reconnect} > $self->{_connect_attempts}->{ $server }++) {
+                # XXX this watcher holds a reference to $self, which means
+                # it will make your program wait for it to fire until 
+                # auto_reconnect attempts have been made. 
+                # if you need to close immediately, you need to call disconnect
+                $self->{_reconnect}->{$server} = AE::timer $self->{reconnect_delay}, 0, sub {
+                    delete $self->{_reconnect}->{$server};
+                    $self->connect_one($server);
+                };
+            }
+        } else {
+            my $h; $h = AnyEvent::Handle->new(
+                fh => $fh,
+                on_drain => sub {
+                    my $h = shift;
+                    if (defined $h->{wbuf} && $h->{wbuf} eq "") {
+                        delete $h->{wbuf}; $h->{wbuf} = "";
+                    }
+                    if (defined $h->{rbuf} && $h->{rbuf} eq "") {
+                        delete $h->{rbuf}; $h->{rbuf} = "";
+                    }
+                },
+                on_eof => sub {
+                    my $h = delete $self->{_server_handles}->{$server};
+                    $h->destroy();
+                    undef $h;
+                },
+                on_error => sub {
+                    my $h = delete $self->{_server_handles}->{$server};
+                    $h->destroy();
+                    $self->connect_one($server) if $self->{auto_reconnect};
+                    undef $h;
+                },
+            );
+
+            push @{$self->{_active_servers}}, $server;
+            $self->{_active_server_count}++;
+            $self->{_server_handles}->{ $server } = $h;
+            delete $self->{_connect_attempts}->{ $server };
+            $self->protocol->prepare_handle( $fh );
+        }
+        $cv->end if $cv;
+    };
+}
+
 sub connect {
     my $self = shift;
 
     return if $self->{_is_connecting} || $self->{_is_connected};
+    $self->disconnect();
 
     $self->{_is_connecting} = {};
-
     $self->{_active_servers} = [];
     $self->{_active_server_count} = 0;
-    my %handles;
     my $connect_cv = AE::cv {
-        $self->{_server_handles} = \%handles;
         delete $self->{_is_connecting};
+        if (! $self->{_active_server_count}) {
+            die "Failed to connect to any memcached servers";
+        }
+
         $self->{_is_connected} = 1;
         $self->drain_queue;
     };
 
     foreach my $server ( @{ $self->{ servers } }) {
-        $connect_cv->begin;
-
-        my ($host, $port) = split( /:/, $server );
-        $port ||= 11211;
-
-        $self->{_is_connecting}->{$server} = tcp_connect $host, $port, sub {
-            my ($fh, $host, $port) = @_;
-
-            delete $self->{_is_connecting}->{$server}; # thanks, buddy
-            if (! $fh) {
-                # connect failed
-                warn "failed to connect to $server";
-            } else {
-                my $h; $h = AnyEvent::Handle->new(
-                    fh => $fh,
-                    on_drain => sub {
-                        my $h = shift;
-                        if (defined $h->{wbuf} && $h->{wbuf} eq "") {
-                            delete $h->{wbuf}; $h->{wbuf} = "";
-                        }
-                        if (defined $h->{rbuf} && $h->{rbuf} eq "") {
-                            delete $h->{rbuf}; $h->{rbuf} = "";
-                        }
-                    },
-                    on_eof => sub {
-                        my $h = delete $handles{$server};
-                        $h->destroy();
-                        undef $h;
-                    },
-                    on_error => sub {
-                        my $h = delete $handles{$server};
-                        $h->destroy();
-                        undef $h;
-                    },
-                );
-
-                push @{$self->{_active_servers}}, $server;
-                $self->{_active_server_count}++;
-                $handles{ $server } = $h;
-                $self->protocol->prepare_handle( $fh );
-            }
-
-            $connect_cv->end;
-        };
+        $self->connect_one($server, $connect_cv);
     }
 }
 
@@ -407,6 +429,8 @@ Cache::Memcached::AnyEvent - AnyEvent Compatible Memcached Client
         warn "got $value for $key";
     });
 
+    $memd->disconnect();
+
 =head1 DESRIPTION
 
 WARNING: ALPHA QUALITY CODE!
@@ -441,6 +465,10 @@ get_multi and the like are not implemented yet on L<AnyEvent::Memcached>.
 
 =over 4
 
+=item auto_reconnect => $max_attempts
+
+Set to 0 to disable auto-reconnecting
+
 =item compress_threshold => $number
 
 =item hash_cb => $cb->($key, $memcached)
@@ -453,6 +481,10 @@ Specify hashing coderef. Callback must return an index to the list of the server
 
 =item protocol_class => $classname
 
+=item reconnect_delay => $seconds
+
+Amount of time to wait between reconnect attempts
+
 =item servers => \@servers
 
 List of servers to use.
@@ -462,6 +494,8 @@ List of servers to use.
 C<%args> can also be a hashref.
 
 =head2 add($key, $value[, $exptime, $noreply], $cb->($rc))
+
+=head2 append($key, $value, $cb->($rc));
 
 =head2 connect()
 
@@ -481,6 +515,8 @@ explicitly.
 =head2 get_multi(\@keys, $cb->(\%values));
 
 =head2 incr($key, $delta[, $initial], $cb->($value))
+
+=head2 prepend($key, $value, $cb->($rc));
 
 =head2 protocol($object)
 
