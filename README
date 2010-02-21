@@ -15,6 +15,8 @@ SYNOPSIS
             warn "got $value for $key";
         });
 
+        $memd->disconnect();
+
 DESRIPTION
     WARNING: ALPHA QUALITY CODE!
 
@@ -44,6 +46,9 @@ RATIONALE
 
 METHODS
   new(%args)
+    auto_reconnect => $max_attempts
+        Set to 0 to disable auto-reconnecting
+
     compress_threshold => $number
     hash_cb => $cb->($key, $memcached)
         Specify hashing coderef. Callback must return an index to the list
@@ -52,12 +57,16 @@ METHODS
     namespace => $namespace
     procotol => $object
     protocol_class => $classname
+    reconnect_delay => $seconds
+        Amount of time to wait between reconnect attempts
+
     servers => \@servers
         List of servers to use.
 
     %args can also be a hashref.
 
   add($key, $value[, $exptime, $noreply], $cb->($rc))
+  append($key, $value, $cb->($rc));
   connect()
     Explicitly connects to each server given. You DO NOT need to call this
     explicitly.
@@ -69,6 +78,7 @@ METHODS
   get_handle( $host_port )
   get_multi(\@keys, $cb->(\%values));
   incr($key, $delta[, $initial], $cb->($value))
+  prepend($key, $value, $cb->($rc));
   protocol($object)
   protocol_class($class)
   replace($key, $value[, $exptime, $noreply], $cb->($rc))
