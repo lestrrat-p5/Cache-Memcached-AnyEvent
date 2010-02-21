@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.00011 - 22 Feb 2010
+    * Implement auto-reconnect
+    * Tests now use Test::Memcached
+
 0.00010 - 11 Feb 2010
     * Fix get/get_multi
 
