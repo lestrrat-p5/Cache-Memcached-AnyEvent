@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.00012 - 22 Feb 2010
+    * Fix for when set operations (include set, add, and the like)
+      might cause the client to stall. This only happens if you are using
+      the text protocol
+
 0.00011 - 22 Feb 2010
     * Implement auto-reconnect
     * Tests now use Test::Memcached
