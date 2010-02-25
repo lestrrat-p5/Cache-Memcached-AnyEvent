@@ -85,7 +85,7 @@ SKIP: {
 
     my $t; $t = AE::timer 5, 0, sub {
         undef $t;
-        skip "Could not access your server", 42;
+        skip "Could not access your server", 46;
         $cv->send;
     };
 
