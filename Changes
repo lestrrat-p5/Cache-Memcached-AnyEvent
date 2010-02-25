@@ -1,7 +1,16 @@
 Changes
 =======
 
-0.00012 - 22 Feb 2010
+0.00013 - 25 Feb 2010
+    * Fix t/100_commands.t -- if (1) you have EV.pm installed, AND (2)
+      your memcached server does not understand binary protocol, then
+      this test might fail with a segmentation fault. 
+      This probably results from something in the cleanup that I'm missing
+      to perform correctly, but I don't know what it is at the moment, so
+      this test will force AnyEvent to use AnyEvent::Impl::Perl.
+      If you have any pointers, patches are certainly appreciated!
+
+0.00012 - 25 Feb 2010
     * Fix for when set operations (include set, add, and the like)
       might cause the client to stall. This only happens if you are using
       the text protocol.
