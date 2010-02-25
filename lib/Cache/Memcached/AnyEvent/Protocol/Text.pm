@@ -143,9 +143,9 @@ sub get_multi {
                 $memcached->prepare_value( $cmd, $value, $exptime );
             $handle->push_write("$cmd $fq_key $flags $expires $write_len\r\n$write_data\r\n");
             if (! $noreply) {
-                $handle->push_read(regex => qr{^(?:NOT_)?STORED\r\n}, sub {
+                $handle->push_read(regex => qr{^(NOT_)STORED\r\n}, sub {
                     undef $guard;
-                    $cb->(1) if $cb;
+                    $cb->($1 ? 0 : 1) if $cb;
                 });
             }
         };
