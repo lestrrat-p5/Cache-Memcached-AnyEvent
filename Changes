@@ -4,7 +4,9 @@ Changes
 0.00012 - 22 Feb 2010
     * Fix for when set operations (include set, add, and the like)
       might cause the client to stall. This only happens if you are using
-      the text protocol
+      the text protocol.
+    * Also, the paramter passed to these callbacks were bogus. That's been
+      fixed too
 
 0.00011 - 22 Feb 2010
     * Implement auto-reconnect
