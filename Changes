@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.00014 - 05 Mar 2010
+    * Fix bad case of confess()
+    * (Text protocol) Sometimes a GET just returns END... work around it
+
 0.00013 - 25 Feb 2010
     * Fix t/100_commands.t -- if (1) you have EV.pm installed, AND (2)
       your memcached server does not understand binary protocol, then
