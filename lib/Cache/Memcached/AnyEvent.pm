@@ -341,11 +341,13 @@ sub decode_key_value {
         $key =~ s/^$ns//;
     }
 
-    if ($flags & F_COMPRESS() && HAVE_ZLIB()) {
-        $data = Compress::Zlib::memGunzip($data);
-    }
-    if ($flags & F_STORABLE()) {
-        $data = Storable::thaw($data);
+    if (defined $flags && defined $data) {
+        if ($flags & F_COMPRESS() && HAVE_ZLIB()) {
+            $data = Compress::Zlib::memGunzip($data);
+        }
+        if ($flags & F_STORABLE()) {
+            $data = Storable::thaw($data);
+        }
     }
     return ($key, $data);
 }

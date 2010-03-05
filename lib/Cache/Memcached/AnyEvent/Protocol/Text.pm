@@ -73,6 +73,9 @@ sub get {
                     undef $guard;
                 } );
             });
+        } elsif ($line =~ /^END$/) {
+            $cb->( undef );
+            undef $guard;
         } else {
             Carp::confess("Unexpected line $line");
         }
