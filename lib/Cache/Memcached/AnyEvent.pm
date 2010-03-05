@@ -450,6 +450,7 @@ I was in the mood to implement the binary protocol. I don't believe it's a requi
 =item Unimplemented Methods
 
 get_multi and the like are not implemented yet on L<AnyEvent::Memcached>.
+L<Cache::Memcached::AnyEvent> has them.
 
 =back
 
