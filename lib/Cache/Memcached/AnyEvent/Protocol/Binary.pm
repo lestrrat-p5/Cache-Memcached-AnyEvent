@@ -437,5 +437,13 @@ sub version {
     }
 }
         
-
 1;
+
+__END__
+
+=head1 NAME
+
+Cache::Memcached::AnyEvent::Protocol::Binary - Implements Memcached Binary Protocol
+
+=cut
+
