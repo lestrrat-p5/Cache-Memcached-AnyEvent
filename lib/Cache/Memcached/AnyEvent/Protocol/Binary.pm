@@ -2,7 +2,6 @@ package Cache::Memcached::AnyEvent::Protocol::Binary;
 use strict;
 use base 'Cache::Memcached::AnyEvent::Protocol';
 use bytes;
-use Carp qw(confess);
 use constant HEADER_SIZE => 24;
 use constant HAS_64BIT => do {
     no strict;
@@ -247,7 +246,7 @@ AnyEvent::Handle::register_write_type memcached_bin => sub {
 
     my $message = pack( 'N6', $i1, $i2, $i3, $i4, $i5, $i6 );
     if (length($message) > HEADER_SIZE) {
-        confess "header size assertion failed";
+        Carp::confess "header size assertion failed";
     }
 
     if ($extra_length) {
