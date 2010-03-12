@@ -42,7 +42,7 @@ RATIONALE
 
     Unimplemented Methods
         get_multi and the like are not implemented yet on
-        AnyEvent::Memcached.
+        AnyEvent::Memcached. Cache::Memcached::AnyEvent has them.
 
 METHODS
   new(%args)
