@@ -5,6 +5,7 @@ use AnyEvent::Handle;
 use AnyEvent::Socket;
 use Carp;
 use String::CRC32;
+use Storable ();
 
 use constant +{
     HAVE_ZLIB => eval { require Compress::Zlib; 1 },
