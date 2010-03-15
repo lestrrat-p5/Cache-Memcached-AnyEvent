@@ -1,6 +1,9 @@
 Changes
 =======
 
+0.00015 - 16 Mar 2010
+    * Explicitly include Storable
+
 0.00014 - 05 Mar 2010
     * Fix bad case of confess()
     * (Text protocol) Sometimes a GET just returns END... work around it
