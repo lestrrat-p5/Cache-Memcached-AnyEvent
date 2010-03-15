@@ -7,6 +7,7 @@ requires 'AnyEvent::Socket';
 requires 'AnyEvent::Handle';
 
 requires 'String::CRC32'; # sorry, required
+requires 'Storable';
 
 test_requires 'Test::Memcached';
 
