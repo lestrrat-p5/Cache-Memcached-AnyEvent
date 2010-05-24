@@ -148,20 +148,22 @@ AnyEvent::Handle::register_read_type memcached_bin => sub {
 
     my %state = ( waiting_header => 1 );
     sub {
+        return unless $_[0]{rbuf};
+
+        my $rbuf_ref = \$_[0]{rbuf};
         if ($state{waiting_header}) {
-            if (! $_[0]{rbuf} || length $_[0]{rbuf} < HEADER_SIZE) {
-                return;
-            }
-            my $header = substr $_[0]{rbuf}, 0, HEADER_SIZE, "";
+            return if length $$rbuf_ref < HEADER_SIZE;
+
+            my $header = substr $$rbuf_ref, 0, HEADER_SIZE, '';
             my ($i1, $i2, $i3, $i4, $i5, $i6) = unpack('N6', $header);
-            $state{magic} = $i1 >> 24;
-            $state{opcode} = ($i1 & 0x00ff0000) >> 16;
-            $state{key_length} = $i1 & 0x0000ffff;
-            $state{extra_length} = ($i2 & 0xff000000) >> 24;
-            $state{data_type} = ($i2 & 0x00ff0000) >> 8;
-            $state{status} = $i2 & 0x0000ffff;
+            $state{magic}             = $i1 >> 24;
+            $state{opcode}            = ($i1 & 0x00ff0000) >> 16;
+            $state{key_length}        = ($i1 & 0x0000ffff);
+            $state{extra_length}      = ($i2 & 0xff000000) >> 24;
+            $state{data_type}         = ($i2 & 0x00ff0000) >> 8;
+            $state{status}            = ($i2 & 0x0000ffff);
             $state{total_body_length} = $i3;
-            $state{opaque} = $i4;
+            $state{opaque}            = $i4;
 
             if (HAS_64BIT) {
                 $state{cas} = $i5 << 32 + $i6;
@@ -174,16 +176,14 @@ AnyEvent::Handle::register_read_type memcached_bin => sub {
         }
 
         if ($state{total_body_length}) {
-            if (! $_[0]{rbuf} || length $_[0]{rbuf} < $state{total_body_length} ) {
-                return;
-            }
+            return if length $$rbuf_ref < $state{total_body_length};
 
-            $state{extra} = substr $_[0]{rbuf}, 0, $state{extra_length}, '';
-            $state{key} = substr $_[0]{rbuf}, 0, $state{key_length}, '';
+            $state{extra} = substr $$rbuf_ref, 0, $state{extra_length}, '';
+            $state{key} = substr $$rbuf_ref, 0, $state{key_length}, '';
 
 
             my $value_len = $state{total_body_length} - ($state{key_length} + $state{extra_length});
-            $state{value} = substr $_[0]{rbuf}, 0, $value_len, '';
+            $state{value} = substr $$rbuf_ref, 0, $value_len, '';
         }
 
         $cb->( \%state );
