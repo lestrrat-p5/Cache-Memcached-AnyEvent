@@ -170,6 +170,10 @@ sub connect {
         }
 
         $self->{_is_connected} = 1;
+
+        if (my $cb = $self->{ on_connect }) {
+            $cb->($self);
+        }
         $self->drain_queue;
     };
 
