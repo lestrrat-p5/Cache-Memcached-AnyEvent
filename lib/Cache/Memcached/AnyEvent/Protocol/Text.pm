@@ -37,9 +37,9 @@ sub delete {
     my ($self, $guard, $memcached, $key, $noreply, $cb) = @_;
 
     my $fq_key = $memcached->prepare_key( $key );
-    my $handle = $memcached->get_handle_for( $key );
+    my $handle = $memcached->get_handle_for( $fq_key );
 
-    my @command = (delete => $key);
+    my @command = (delete => $fq_key);
     $noreply = 0; # XXX - FIXME
     if ($noreply) {
         push @command, "noreply";
