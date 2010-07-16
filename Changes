@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.00017 - 16 Jul 2010
+    * Fix docs.
+    * No code changes.
+
 0.00016 - 16 Jul 2010
     * Rearrange tests
     * Text protocol delete() wasn't finding the correct server.
