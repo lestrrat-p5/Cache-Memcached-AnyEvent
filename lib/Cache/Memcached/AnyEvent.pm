@@ -432,32 +432,31 @@ Cache::Memcached::AnyEvent - AnyEvent Compatible Memcached Client
 
 =head1 DESRIPTION
 
-WARNING: ALPHA QUALITY CODE!
+WARNING: BETA QUALITY CODE!
 
 This module implements the memcached protocol as a AnyEvent consumer, and it implments both for text and binary protocols.
 
 =head1 RATIONALE
 
-There's another alternative L<AnyEvent> memcached client, L<AnyEvent::Memcached> which is perfectly fine, and I have nothing against you using that module, but I had specific itches to scratch:
+There's another alternative L<AnyEvent> memcached client, L<AnyEvent::Memcached> which is perfectly fine, and I have nothing against you using that module. I just have some specific itches to scratch:
 
 =over 4
 
 =item Prerequisites
 
-This module, L<Cache::Memcached::AnyEvent>, requires the bare minimum prerequisites to install.
-
-There were more than a few modules that get installed for L<AnyEvent::Memcached> (including some modules that I had to install solely for it) and I wanted to avoid it.
+This module, L<Cache::Memcached::AnyEvent>, requires the bare minimum prerequisites to install. L<AnyEvent::Memcached> requires AnyEvent::Connection and Object::Event ;) Those modules are fine, I just don't use them, so I don't want them.
 
 =item Binary Protocol
 
-I was in the mood to implement the binary protocol. I don't believe it's a requirement to do anything, so this is purely a whim.
+I was in the mood to implement the binary protocol. I don't believe it's a requirement to do anything, so this is purely a whim. There's nothing that requires binary protocol in the wild, so it has no practactical advantages. I just wanted to implement it :)
 
-=item Unimplemented Methods
+=item Cache::Memcached Interface
 
-get_multi and the like are not implemented yet on L<AnyEvent::Memcached>.
-L<Cache::Memcached::AnyEvent> has them.
+In general, this module follows the interface of Cache::Memcached.
 
 =back
+
+So choose according to your needs. If you for some reason don't want AnyEvent::Connection and Object::Event, want a binary protocol, and like to stick with Cache::Memcached interface (relatively speaking), then use this module. Otherwise, read the docs for each module, and choose the one that fits your needs.
 
 =head1 METHODS
 
