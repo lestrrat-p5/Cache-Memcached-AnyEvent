@@ -1,6 +1,12 @@
 Changes
 =======
 
+0.00016 - 16 Jul 2010
+    * Rearrange tests
+    * Text protocol delete() wasn't finding the correct server.
+      Reported and fixed by Michael Alan Dorman
+    * Some minor tweaks
+
 0.00015 - 16 Mar 2010
     * Explicitly include Storable
 
