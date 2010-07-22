@@ -18,7 +18,7 @@ SYNOPSIS
         $memd->disconnect();
 
 DESRIPTION
-    WARNING: ALPHA QUALITY CODE!
+    WARNING: BETA QUALITY CODE!
 
     This module implements the memcached protocol as a AnyEvent consumer,
     and it implments both for text and binary protocols.
@@ -26,23 +26,28 @@ DESRIPTION
 RATIONALE
     There's another alternative AnyEvent memcached client,
     AnyEvent::Memcached which is perfectly fine, and I have nothing against
-    you using that module, but I had specific itches to scratch:
+    you using that module. I just have some specific itches to scratch:
 
     Prerequisites
         This module, Cache::Memcached::AnyEvent, requires the bare minimum
-        prerequisites to install.
-
-        There were more than a few modules that get installed for
-        AnyEvent::Memcached (including some modules that I had to install
-        solely for it) and I wanted to avoid it.
+        prerequisites to install. AnyEvent::Memcached requires
+        AnyEvent::Connection and Object::Event ;) Those modules are fine, I
+        just don't use them, so I don't want them.
 
     Binary Protocol
         I was in the mood to implement the binary protocol. I don't believe
-        it's a requirement to do anything, so this is purely a whim.
+        it's a requirement to do anything, so this is purely a whim. There's
+        nothing that requires binary protocol in the wild, so it has no
+        practactical advantages. I just wanted to implement it :)
 
-    Unimplemented Methods
-        get_multi and the like are not implemented yet on
-        AnyEvent::Memcached. Cache::Memcached::AnyEvent has them.
+    Cache::Memcached Interface
+        In general, this module follows the interface of Cache::Memcached.
+
+    So choose according to your needs. If you for some reason don't want
+    AnyEvent::Connection and Object::Event, want a binary protocol, and like
+    to stick with Cache::Memcached interface (relatively speaking), then use
+    this module. Otherwise, read the docs for each module, and choose the
+    one that fits your needs.
 
 METHODS
   new(%args)
