@@ -468,6 +468,21 @@ So choose according to your needs. If you for some reason don't want AnyEvent::C
 
 =head1 METHODS
 
+All methods interacting with a memcached server which can take a callback
+function can also take a condvar instead. For example, 
+
+    $memd->get( "foo", sub {
+        my $value = shift;
+    } );
+
+is equivalent to
+
+    my $cv = AE::cv {
+        my $value = $_[0]->recv;
+    };
+    $memd->get( "foo", $cv );
+    # optionally, call $cv->recv here.
+
 =head2 new(%args) 
 
 =over 4
@@ -502,7 +517,7 @@ C<%args> can also be a hashref.
 
 =head2 add($key, $value[, $exptime, $noreply], $cb->($rc))
 
-=head2 append($key, $value, $cb->($rc));
+=head2 append($key, $value, $cb->($rc))
 
 =head2 connect()
 
