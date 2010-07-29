@@ -184,7 +184,7 @@ sub connect {
 
 sub add {
     my ($self, @args) = @_;
-    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $exptime, $noreply) = @args;
     $self->push_queue( 
         $self->protocol, 'add', $key, $value, $exptime, $noreply, $cb );
@@ -192,14 +192,14 @@ sub add {
 
 sub decr {
     my ($self, @args) = @_;
-    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $initial) = @args;
     $self->push_queue( $self->protocol, 'decr', $key, $value, $initial, $cb );
 }
 
 sub delete {
     my ($self, @args) = @_;
-    my $cb       = pop @args if ref $args[-1] eq 'CODE';
+    my $cb       = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my $noreply  = !defined $cb;
     $self->push_queue( $self->protocol, 'delete', @args, $noreply, $cb );
 }
@@ -218,40 +218,40 @@ sub get_multi {
 
 sub incr {
     my ($self, @args) = @_;
-    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $initial) = @args;
     $self->push_queue( $self->protocol, 'incr', $key, $value, $initial, $cb );
 }
 
 sub replace {
     my ($self, @args) = @_;
-    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $exptime, $noreply) = @args;
     $self->push_queue( $self->protocol, 'replace', $key, $value, $exptime, $noreply, $cb );
 }
 
 sub set {
     my ($self, @args) = @_;
-    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $exptime, $noreply) = @args;
     $self->push_queue( $self->protocol, 'set', $key, $value, $exptime, $noreply, $cb);
 }
 
 sub append {
     my ($self, @args) = @_;
-    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     $self->push_queue( $self->protocol, 'append', @args, undef, undef, $cb);
 }
 
 sub prepend {
     my ($self, @args) = @_;
-    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     $self->push_queue( $self->protocol, 'prepend', @args, undef, undef, $cb);
 }
 
 sub stats {
     my ($self, @args) = @_;
-    my $cb = pop @args if ref $args[-1] eq 'CODE';
+    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($name) = @args;
     $self->push_queue( $self->protocol, 'stats', $name, $cb );
 }

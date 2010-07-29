@@ -4,7 +4,7 @@ use AnyEvent::Impl::Perl;
 use Cache::Memcached::AnyEvent::Test;
 
 my $memd = test_client() or exit;
-plan tests => 50 * 2;
+plan tests => 52 * 2;
 
 # count should be >= 4.
 use constant count => 10;
@@ -18,7 +18,9 @@ my @callbacks = (
         $memd->delete($key, sub { ok(1, 'Delete'); $cv->end });
     },
     sub { my ($memd, $cv) = @_; $memd->flush_all(sub { is($_[0], 1, 'Flush all records'); $cv->end }); },
+    sub { my ($memd, $cv) = @_; my $cb = AE::cv {is($_[0]->recv, 1, 'Flush all records'); $cv->end }; $memd->flush_all($cb); },
     sub { my ($memd, $cv) = @_; $memd->get($key, sub { ok(!$_[0], "Get on non-existent value"); $cv->end }) },
+    sub { my ($memd, $cv) = @_; my $cb = AE::cv {ok(!$_[0]->recv, "Get on non-existent value"); $cv->end }; $memd->get($key, $cb) },
     sub { my ($memd, $cv) = @_; $memd->add($key, 'v1', sub { ok($_[0], 'Add'); $cv->end }); },
     sub { my ($memd, $cv) = @_; $memd->get($key, sub { is( $_[0], 'v1', 'Fetch'); $cv->end } ); },
     sub { my ($memd, $cv) = @_; $memd->set($key, 'v2', sub { ok($_[0], 'Set'); $cv->end }); },
