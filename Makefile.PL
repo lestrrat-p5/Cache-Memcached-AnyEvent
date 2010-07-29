@@ -16,5 +16,6 @@ recommends 'Compress::Zlib';
 
 readme_from 'lib/Cache/Memcached/AnyEvent.pm';
 auto_set_repository;
+author_tests 'xt';
 
 WriteAll;

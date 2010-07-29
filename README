@@ -79,6 +79,7 @@ METHODS
   decr($key, $delta[, $initial], $cb->($value))
   delete($key, $cb->($rc))
   disconnect()
+  flush_all()
   get($key, $cb->($value))
   get_handle( $host_port )
   get_multi(\@keys, $cb->(\%values));

@@ -515,6 +515,8 @@ explicitly.
 
 =head2 disconnect()
 
+=head2 flush_all()
+
 =head2 get($key, $cb->($value))
 
 =head2 get_handle( $host_port )
