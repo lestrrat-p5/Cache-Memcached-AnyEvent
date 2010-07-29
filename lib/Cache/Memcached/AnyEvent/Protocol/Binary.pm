@@ -437,6 +437,23 @@ sub version {
     }
 }
         
+sub flush_all {
+    my ($self, $guard, $memcached, $delay, $noreply, $cb) = @_;
+
+    my $cv = AE::cv {
+        undef $guard;
+        $cb->(1);
+    };
+
+    while (my ($host_port, $handle) = each %{ $memcached->{_server_handles} }) {
+        $handle->push_write(memcached_bin => MEMD_FLUSH);
+        $cv->begin;
+        $handle->push_read(memcached_bin => sub {
+            $cv->end;
+        });
+    }
+}
+
 1;
 
 __END__

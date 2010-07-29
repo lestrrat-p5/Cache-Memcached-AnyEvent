@@ -190,6 +190,34 @@ sub stats {
     $cv->end;
 }
 
+sub flush_all {
+    my ($self, $guard, $memcached, $delay, $noreply, $cb) = @_;
+
+    my $cv = AE::cv {
+        undef $guard;
+        $cb->( $_[0]->recv ) if $cb;
+    };
+
+    $delay ||= 0;
+    my @command = ('flush_all');
+    push @command, $delay if ($delay);
+    push @command, 'noreply' if ($noreply);
+    my $command = join(' ', @command) . "\r\n";
+
+    $cv->begin(sub { $_[0]->send(1) });
+    foreach my $server (@{ $memcached->{_active_servers} }) {
+        my $handle = $memcached->get_handle( $server );
+        $handle->push_write( $command );
+        if (! $noreply) {
+            $cv->begin;
+            $handle->push_read(regex => qr{^OK\r\n}, sub {
+                                   $cv->end;
+                               });
+        }
+    }
+    $cv->end;
+}
+
 sub version {
     my ($self, $guard, $memcached, $cb) = @_;
 

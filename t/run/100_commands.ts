@@ -4,7 +4,7 @@ use AnyEvent::Impl::Perl;
 use Cache::Memcached::AnyEvent::Test;
 
 my $memd = test_client() or exit;
-plan tests => 47 * 2;
+plan tests => 50 * 2;
 
 # count should be >= 4.
 use constant count => 10;
@@ -17,6 +17,7 @@ my @callbacks = (
         my ($memd, $cv) = @_;
         $memd->delete($key, sub { ok(1, 'Delete'); $cv->end });
     },
+    sub { my ($memd, $cv) = @_; $memd->flush_all(sub { is($_[0], 1, 'Flush all records'); $cv->end }); },
     sub { my ($memd, $cv) = @_; $memd->get($key, sub { ok(!$_[0], "Get on non-existent value"); $cv->end }) },
     sub { my ($memd, $cv) = @_; $memd->add($key, 'v1', sub { ok($_[0], 'Add'); $cv->end }); },
     sub { my ($memd, $cv) = @_; $memd->get($key, sub { is( $_[0], 'v1', 'Fetch'); $cv->end } ); },
@@ -77,6 +78,8 @@ my @callbacks = (
         my ($memd, $cv) = @_;
         $memd->get( $key, sub { is ($_[0], '123abcdef', "prepend result ok for $key"); $cv->end } );
     },
+    sub { my ($memd, $cv) = @_; $memd->flush_all(sub { is($_[0], 1, 'Flush all records'); $cv->end }); },
+    sub { my ($memd, $cv) = @_; $memd->get($key, sub { ok(!$_[0], "Get on non-existent value"); $cv->end }) },
 );
 
 foreach my $protocol qw(Text Binary) {

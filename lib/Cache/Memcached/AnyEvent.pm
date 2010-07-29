@@ -261,6 +261,14 @@ sub version {
     $self->push_queue( $self->protocol, 'version', $cb);
 }
 
+sub flush_all {
+    my ($self, @args) = @_;
+    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
+    my $noreply = !!$cb;
+    my $delay = shift @args || 0;
+    $self->push_queue( $self->protocol, 'flush_all', $delay, $noreply, $cb );
+}
+
 sub push_queue {
     my ($self, @args) = @_;
     push @{$self->{queue}}, [ @args ];
