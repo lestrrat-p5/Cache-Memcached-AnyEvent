@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.00018 - 29 Jul 2010
+    * Add flush_all() method (mdorman)
+    * Allow passing a condvar instead of a callback subroutine (mdorman)
+    * Add some tweaks along the way
+    
 0.00017 - 16 Jul 2010
     * Fix docs.
     * No code changes.
