@@ -3,7 +3,6 @@ use lib "t/lib";
 use Cache::Memcached::AnyEvent::Test;
 
 my $memd = test_client() or exit;
-plan tests => 51;
 
 my $bogus_server = 'you.should.not.be.able.to.connect.to.me:11211';
 push @{$memd->{servers}}, $bogus_server;
@@ -25,3 +24,5 @@ foreach my $i (1..50) {
 }
 
 $cv->recv;
+
+done_testing;

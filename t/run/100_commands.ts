@@ -4,7 +4,6 @@ use AnyEvent::Impl::Perl;
 use Cache::Memcached::AnyEvent::Test;
 
 my $memd = test_client() or exit;
-plan tests => 52 * 2;
 
 # count should be >= 4.
 use constant count => 10;
@@ -122,3 +121,4 @@ SKIP: {
 }
 }
 
+done_testing;

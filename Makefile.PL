@@ -10,7 +10,7 @@ requires 'String::CRC32'; # sorry, required
 requires 'Storable';
 
 test_requires 'Test::More' => '0.94';
-test_requires 'Test::Memcached';
+test_requires 'Test::Memcached' => '0.00003';
 
 recommends 'Compress::Zlib';
 

@@ -6,7 +6,6 @@ use AnyEvent::Impl::Perl;
 use Cache::Memcached::AnyEvent::Test;
 
 my $memd = test_client() or exit;
-plan tests => 3;
 
 # count should be >= 4.
 use constant count => 10;
@@ -27,3 +26,5 @@ use Data::Dumper;
 $cv = AE::cv { is($_[0]->recv, "foo", "get ok") };
 $memd->get($key, $cv);
 $cv->recv;
+
+done_testing();

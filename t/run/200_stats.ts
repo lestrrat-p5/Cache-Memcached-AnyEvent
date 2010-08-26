@@ -4,7 +4,6 @@ use Test::More;
 use Cache::Memcached::AnyEvent::Test;
 
 my $memd = test_client() or exit;
-plan tests => 2;
 
 my $cv = AE::cv;
 
@@ -27,3 +26,4 @@ foreach my $protocol qw(Text Binary) {
 }
 
 $cv->recv;
+done_testing;
