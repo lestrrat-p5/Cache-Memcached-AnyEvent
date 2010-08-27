@@ -6,11 +6,12 @@ use AnyEvent;
 use Cache::Memcached::AnyEvent;
 use Test::More tests => 41;
 use Test::Memcached;
+use t::Cache::Memcached::AnyEvent::Test;
 
 my @memd;
 if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
     my $port;
-    for (1..5) {
+    for (1..15) {
         my $memd = Test::Memcached->new(base_dir => 't', options => { verbose => 1 });
             
         if (! $memd) {
@@ -37,12 +38,28 @@ if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
     );
 }
 
+    my @servers;
+    foreach my $server (split /,/, $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS} ) {
+        my ($host, $port) = split(/:/, $server);
+        my $socket = IO::Socket::INET->new(
+            PeerHost => $host,
+            PeerPort => $port,
+        );
+        if ($socket) {
+            push @servers, $server;
+        }
+    }
+
+    if (! @servers) {
+        plan skip_all => "Can't talk to any memcached servers";
+    }
+
 my $cv = AE::cv;
 $cv->begin;
 
 {
     my $mc = Cache::Memcached::AnyEvent->new ({
-                                               servers => [split /,/, $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}],
+                                               servers => \@servers,
                                                namespace => 'mytest.'
                                               });
     $cv->begin;
@@ -60,7 +77,7 @@ $cv = AE::cv;
 $cv->begin;
 for (1..40) {
     my $mc = Cache::Memcached::AnyEvent->new ({
-                                               servers => [split /,/, $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}],
+                                               servers => \@servers,
                                                namespace => 'mytest.'
                                               });
     $cv->begin;
