@@ -6,13 +6,44 @@ use AnyEvent;
 use Cache::Memcached::AnyEvent;
 use POSIX qw{sys_wait_h};
 use Test::More tests => 41;
+use Test::Memcached;
 
-my @ports = (11217..11230);
+my @memd;
+if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
+    my $port;
+    for (1..5) {
+        my $memd = Test::Memcached->new(base_dir => 't', options => { verbose => 1 });
+            
+        if (! $memd) {
+            plan skip_all => "Failed to start memcached server";
+        }
+        if ($port) {
+            $memd->start( tcp_port => $port );
+        } else {
+            $memd->start();
+        }
+
+        if ($port) {
+            $port++;
+        } else {
+            $port = $memd->option('tcp_port') + 1;
+        }
+
+        # give it a second for the server to start
+        push @memd, $memd;
+    }
+
+    $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS} = join(',', 
+        map { sprintf('127.0.0.1:%d', $_->option('tcp_port')) } @memd
+    );
+}
+
+#my @ports = (11217..11230);
 #my @ports = (11217..11217);
 
-my @servers = map {"127.0.0.1:$_"} @ports;
+#my @servers = map {"127.0.0.1:$_"} @ports;
 
-my @memcaches = map {memcached ($_)} @ports;
+#my @memcaches = map {memcached ($_)} @ports;
 
 sleep 1;
 
@@ -25,7 +56,7 @@ $cv->begin;
 #    warn "Starting tests\n";
 
     my $mc = Cache::Memcached::AnyEvent->new ({
-                                               servers => \@servers,
+                                               servers => [split /,/, $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}],
                                                namespace => 'mytest.',
                                               });
     $cv->begin;
@@ -44,7 +75,7 @@ $cv = AE::cv;
 $cv->begin;
 for (1..40) {
     my $mc = Cache::Memcached::AnyEvent->new ({
-                                               servers => \@servers,
+                                               servers => [split /,/, $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}],
                                                namespace => 'mytest.',
                                               });
     $cv->begin;
@@ -64,7 +95,7 @@ $cv->recv;
 
 #warn "Terminating memcached\n";
 
-map {terminate ($_)} @memcaches;
+#map {terminate ($_)} @memcaches;
 
 sub memcached {
     my $port = shift;
