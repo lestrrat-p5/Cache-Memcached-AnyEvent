@@ -1,6 +1,5 @@
 use strict;
-use lib "t/lib";
-use Cache::Memcached::AnyEvent::Test;
+use t::Cache::Memcached::AnyEvent::Test;
 
 my $memd = test_client() or exit;
 

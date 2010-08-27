@@ -4,14 +4,26 @@ use Test::Memcached;
 
 my @memd;
 if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
+    my $port;
     for (1..5) {
-        my $memd = Test::Memcached->new();
+        my $memd = Test::Memcached->new(base_dir => 't', options => { verbose => 1 });
+            
         if (! $memd) {
             plan skip_all => "Failed to start memcached server";
         }
-        $memd->start;
+        if ($port) {
+            $memd->start( tcp_port => $port );
+        } else {
+            $memd->start();
+        }
+
+        if ($port) {
+            $port++;
+        } else {
+            $port = $memd->option('tcp_port') + 1;
+        }
+
         # give it a second for the server to start
-        sleep 1;
         push @memd, $memd;
     }
 
