@@ -37,15 +37,13 @@ if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
     );
 }
 
-sleep 1;
-
 my $cv = AE::cv;
 $cv->begin;
 
 {
     my $mc = Cache::Memcached::AnyEvent->new ({
                                                servers => [split /,/, $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}],
-                                               namespace => 'mytest.',
+                                               namespace => 'mytest.'
                                               });
     $cv->begin;
     $mc->set (foo => bar => sub {
@@ -63,7 +61,7 @@ $cv->begin;
 for (1..40) {
     my $mc = Cache::Memcached::AnyEvent->new ({
                                                servers => [split /,/, $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}],
-                                               namespace => 'mytest.',
+                                               namespace => 'mytest.'
                                               });
     $cv->begin;
     $mc->get (foo => sub {
