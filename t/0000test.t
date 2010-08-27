@@ -38,30 +38,15 @@ if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
     );
 }
 
-    my @servers;
-    foreach my $server (split /,/, $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS} ) {
-        my ($host, $port) = split(/:/, $server);
-        my $socket = IO::Socket::INET->new(
-            PeerHost => $host,
-            PeerPort => $port,
-        );
-        if ($socket) {
-            push @servers, $server;
-        }
-    }
-
-    if (! @servers) {
-        plan skip_all => "Can't talk to any memcached servers";
-    }
-
 my $cv = AE::cv;
 $cv->begin;
 
 {
-    my $mc = Cache::Memcached::AnyEvent->new ({
-                                               servers => \@servers,
-                                               namespace => 'mytest.'
-                                              });
+    my $mc = test_client(namespace => 'mytest.') or die;
+    # my $mc = Cache::Memcached::AnyEvent->new ({
+    #                                            servers => \@servers,
+    #                                            namespace => 'mytest.'
+    #                                           });
     $cv->begin;
     $mc->set (foo => bar => sub {
                   my $rc = shift;
@@ -76,10 +61,11 @@ $cv->recv;
 $cv = AE::cv;
 $cv->begin;
 for (1..40) {
-    my $mc = Cache::Memcached::AnyEvent->new ({
-                                               servers => \@servers,
-                                               namespace => 'mytest.'
-                                              });
+    my $mc = test_client(namespace => 'mytest.') or die;
+    # my $mc = Cache::Memcached::AnyEvent->new ({
+    #                                            servers => \@servers,
+    #                                            namespace => 'mytest.'
+    #                                           });
     $cv->begin;
     $mc->get (foo => sub {
                   my $value = shift;
