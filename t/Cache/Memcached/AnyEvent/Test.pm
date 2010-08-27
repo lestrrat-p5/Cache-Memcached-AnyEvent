@@ -1,4 +1,4 @@
-package Cache::Memcached::AnyEvent::Test;
+package t::Cache::Memcached::AnyEvent::Test;
 use strict;
 use Cache::Memcached::AnyEvent;
 use IO::Socket::INET;
@@ -20,6 +20,7 @@ sub test_servers {
 }
 
 sub test_client {
+    my %args = @_;
     my @servers;
     foreach my $server ( test_servers() ) {
         my ($host, $port) = split(/:/, $server);
@@ -37,8 +38,9 @@ sub test_client {
     }
 
     return Cache::Memcached::AnyEvent->new(
+        namespace => join('.', time(), $$, ''),
+        %args,
         servers => \@servers,
-        namespace => join('.', time(), $$, '')
     );
 }
     
