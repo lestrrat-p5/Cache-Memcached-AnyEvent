@@ -1,3 +1,10 @@
+# Cache::Memcached::AnyEvent
+#   is the API
+# Cache::Memcached::AnyEvent::Selector
+#   is the guts that selects sockets to talk to.
+# Cache::Memcached::AnyEvent::Protocol
+#   is the guy that actually speaks to memcached
+
 package Cache::Memcached::AnyEvent;
 use strict;
 use AnyEvent;
@@ -18,16 +25,18 @@ our $VERSION = '0.00018';
 
 sub new {
     my $class = shift;
+    my %args  = @_ == 1 ? %{$_[0]} : @_;
+
+    my $protocol_class = delete $args{protocol_class} || 'Text';
+    my $selector_class = delete $args{selector_class} || 'Traditional';
     my $self  = bless {
         auto_reconnect => 5,
         compess_threshold => 10_000,
-        hash_cb => \&_modulo_hasher,
         protocol => undef,
-        protocol_class => 'Text',
         reconnect_delay => 5,
         servers => undef,
         namespace => undef,
-        @_ == 1 ? %{$_[0]} : @_,
+        %args,
         _active_servers => [],
         _active_server_count => 0,
         _is_connected => undef,
@@ -36,23 +45,29 @@ sub new {
         _server_handles => undef,
     }, $class;
 
-    $self->{protocol} ||= $self->_build_protocol;
+    $self->{selector} ||= $self->_build_selector( $selector_class );
+    $self->{protocol} ||= $self->_build_protocol( $protocol_class );
 
     return $self;
 }
 
+sub _build_selector {
+    $_[0]->_build_helper( 'Cache::Memcached::AnyEvent::Selector', $_[1] );
+}
 sub _build_protocol {
-    my $self = shift;
-    my $p_class = $self->{protocol_class};
-    if ($p_class !~ s/^\+//) {
-        $p_class = "Cache::Memcached::AnyEvent::Protocol::$p_class";
+    $_[0]->_build_helper( 'Cache::Memcached::AnyEvent::Protocol', $_[1] );
+}
+sub _build_helper {
+    my ($self, $prefix, $klass) = @_;
+    if ($klass !~ s/^\+//) {
+        $klass = "${prefix}::$klass";
     }
 
-    $p_class =~ s/[^\w:_]//g; # cleanse
+    $klass =~ s/[^\w:_]//g; # cleanse
 
-    eval "require $p_class";
+    eval "require $klass";
     Carp::confess $@ if $@;
-    return $p_class->new(memcached => $self);
+    return $klass->new(memcached => $self);
 }
 
 BEGIN {
@@ -78,17 +93,17 @@ sub protocol {
         my $obj = shift;
         my $class = ref $obj;
         $self->{protocol} = $obj;
-        $self->{protocol_class} = $class;
     }
     return $ret;
 }
 
-sub protocol_class {
+sub selector {
     my $self = shift;
-    my $ret  = $self->{protocol_class};
+    my $ret  = $self->{selector};
     if (@_) {
-        $self->{protocol_class} = shift;
-        $self->{protocol} = $self->_build_protocol;
+        my $obj = shift;
+        my $class = ref $obj;
+        $self->{selector} = $obj;
     }
     return $ret;
 }
@@ -109,6 +124,7 @@ sub connect_one {
         if (! $fh) {
             # connect failed
             warn "failed to connect to $server";
+
             if ($self->{auto_reconnect} > $self->{_connect_attempts}->{ $server }++) {
                 # XXX this watcher holds a reference to $self, which means
                 # it will make your program wait for it to fire until 
@@ -144,14 +160,20 @@ sub connect_one {
                 },
             );
 
-            push @{$self->{_active_servers}}, $server;
-            $self->{_active_server_count}++;
-            $self->{_server_handles}->{ $server } = $h;
+            $self->_add_active_server( $server, $h );
             delete $self->{_connect_attempts}->{ $server };
             $self->protocol->prepare_handle( $fh );
         }
         $cv->end if $cv;
     };
+}
+
+sub _add_active_server {
+    my ($self, $server, $h) = @_;
+    push @{$self->{_active_servers}}, $server;
+    $self->{_active_server_count}++;
+    $self->{_server_handles}->{ $server } = $h;
+    $self->{selector}->add_server( $server, $h );
 }
 
 sub connect {
@@ -174,7 +196,7 @@ sub connect {
         if (my $cb = $self->{ on_connect }) {
             $cb->($self);
         }
-        $self->drain_queue;
+        $self->_drain_queue;
     };
 
     foreach my $server ( @{ $self->{ servers } }) {
@@ -272,10 +294,10 @@ sub flush_all {
 sub push_queue {
     my ($self, @args) = @_;
     push @{$self->{queue}}, [ @args ];
-    $self->drain_queue unless $self->{_is_draining};
+    $self->_drain_queue unless $self->{_is_draining};
 }
 
-sub drain_queue {
+sub _drain_queue {
     my $self = shift;
     if (! $self->{_is_connected}) {
         if ($self->{_is_connecting}) {
@@ -296,7 +318,7 @@ sub drain_queue {
             my $t; $t = AE::timer 0, 0, sub {
                 $self->{_is_draining}--;
                 undef $t;
-                $self->drain_queue;
+                $self->_drain_queue;
             };
         };
         $proto->$method($guard, $self, @args);
@@ -329,6 +351,10 @@ sub DESTROY {
     
 sub get_handle_for {
     my ($self, $key) = @_;
+    $self->{selector}->get_handle( $key );
+}
+=head1
+
     my $servers   = $self->{_active_servers};
     my $i         = $self->{hash_cb}->($key, $self);
     my $handle    = $self->get_handle( $servers->[ $i ] );
@@ -338,6 +364,7 @@ sub get_handle_for {
 
     return $handle;
 }
+=cut
 
 sub prepare_key {
     my ($self, $key) = @_;
@@ -493,9 +520,12 @@ Set to 0 to disable auto-reconnecting
 
 =item compress_threshold => $number
 
-=item hash_cb => $cb->($key, $memcached)
+=item selector
 
-Specify hashing coderef. Callback must return an index to the list of the servers, where C<$key> belongs to.
+The selector is an object responsible for selecting the appropriate
+Memcached server to store a particular key
+
+=item selector_class
 
 =item namespace => $namespace
 
@@ -543,8 +573,6 @@ explicitly.
 =head2 prepend($key, $value, $cb->($rc));
 
 =head2 protocol($object)
-
-=head2 protocol_class($class)
 
 =head2 replace($key, $value[, $exptime, $noreply], $cb->($rc))
 

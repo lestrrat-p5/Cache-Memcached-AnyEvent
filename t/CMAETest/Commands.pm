@@ -1,15 +1,12 @@
+package t::CMAETest::Commands;
 use strict;
 use AnyEvent::Impl::Perl;
 use t::Cache::Memcached::AnyEvent::Test;
-
-my $memd = test_client() or exit;
-
-# count should be >= 4.
-use constant count => 10;
+use Test::More;
+use Test::Exception;
 
 my $key = 'CMAETest.' . int(rand(1000));
-my @keys = map { "commands-$_" } (1..count);
-
+my @keys = map { "commands-$_" } (1..10);
 my @callbacks = (
     sub {
         my ($memd, $cv) = @_;
@@ -79,45 +76,43 @@ my @callbacks = (
         $memd->get( $key, sub { is ($_[0], '123abcdef', "prepend result ok for $key"); $cv->end } );
     },
     sub { my ($memd, $cv) = @_; $memd->flush_all(sub { is($_[0], 1, 'Flush all records'); $cv->end }); },
-    sub { my ($memd, $cv) = @_; $memd->get($key, sub { ok(!$_[0], "Get on non-existent value"); $cv->end }) },
+    sub { my ($memd, $cv) = @_; $memd->get($key, sub { ok(!$_[0], "Get on existing value fails after flush_all"); $cv->end }) },
 );
 
-foreach my $protocol qw(Text Binary) {
-SKIP: {
-    my $cv = AE::cv;
-    my $memd = test_client();
-    $memd->protocol_class($protocol);
+sub run {
+    my ($pkg, $protocol, $selector) = @_;
 
-    my $t; $t = AE::timer 5, 0, sub {
-        undef $t;
-        skip "Could not access your server", 52;
-        $cv->send;
-    };
+    lives_ok {
+        my $cv = AE::cv;
+        my $memd = test_client(protocol_class => $protocol, selector_class => $selector);
 
-    $cv->begin;
-    $memd->version( sub {
-        undef $t; 
-        while ( my($host_port, $version) = each %{$_[0]} ) {
-            note("($protocol) using memcached $version on $host_port");
-        }
-        $cv->end;
-    } );
+        isa_ok $memd->selector, "Cache::Memcached::AnyEvent::Selector::$selector";
+        isa_ok $memd->protocol, "Cache::Memcached::AnyEvent::Protocol::$protocol";
 
-    $cv->recv;
-
-    $cv = AE::cv;
-    foreach my $code (@callbacks) {
         $cv->begin;
-        eval {
-            $code->($memd, $cv);
-        };
-        if ($@) {
-            ok(0, "an error occurred: $@");
+        $memd->version( sub {
+            while ( my($host_port, $version) = each %{$_[0]} ) {
+                note("[$protocol/$selector] using memcached $version on $host_port");
+            }
             $cv->end;
+        } );
+
+        $cv->recv;
+
+        $cv = AE::cv;
+        foreach my $code (@callbacks) {
+            $cv->begin;
+            eval {
+                $code->($memd, $cv);
+            };
+            if ($@) {
+                ok(0, "an error occurred: $@");
+                $cv->end;
+            }
         }
-    }
-    $cv->recv;
-}
+        $cv->recv;
+    } "Command tests ran fine";
+    done_testing;
 }
 
-done_testing;
+1;

@@ -30,6 +30,8 @@ sub test_client {
         );
         if ($socket) {
             push @servers, $server;
+        } else {
+            warn "failed: $@";
         }
     }
 

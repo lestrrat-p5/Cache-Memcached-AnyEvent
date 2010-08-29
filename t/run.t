@@ -1,6 +1,12 @@
 use strict;
 use Test::More;
 use Test::Memcached;
+use Test::Requires;
+use t::CMAETest::Commands;
+use t::CMAETest::ConnectFail;
+use t::CMAETest::CV;
+use t::CMAETest::Dorman;
+use t::CMAETest::Stats;
 
 my @memd;
 if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
@@ -32,10 +38,18 @@ if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
     );
 }
 
-my @files = <t/run/*.ts>;
-
-foreach my $file (@files) {
-    subtest "run $file" => sub { do $file };
+foreach my $protocol qw(Text Binary) {
+    foreach my $selector qw(Traditional Ketama) {
+        foreach my $pkg qw( t::CMAETest::Commands t::CMAETest::ConnectFail t::CMAETest::CV t::CMAETest::Dorman t::CMAETest::Stats ) {
+            note "running $pkg test [$protocol/$selector]";
+            subtest "$pkg [$protocol/$selector]" => sub {
+                if ( $selector eq 'Ketama' ) {
+                    Test::Requires->import( 'Algorithm::ConsistentHash::Ketama' );
+                }
+                $pkg->run( $protocol, $selector );
+            };
+        }
+    }
 }
 
 done_testing();
