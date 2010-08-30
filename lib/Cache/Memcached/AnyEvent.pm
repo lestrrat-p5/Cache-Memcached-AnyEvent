@@ -11,7 +11,6 @@ use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 use Carp;
-use String::CRC32;
 use Storable ();
 
 use constant +{
@@ -419,13 +418,6 @@ sub _prepare_value {
 
     return ($value, $len, $flags, $exptime);
 }
-
-sub _modulo_hasher {
-    my ($key, $memcached) = @_;
-    my $count = $memcached->{_active_server_count};
-    return ((String::CRC32::crc32($key) >> 16) & 0x7fff) % $count;
-}
-
 
 1;
 
