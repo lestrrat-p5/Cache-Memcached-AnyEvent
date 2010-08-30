@@ -465,6 +465,21 @@ Cache::Memcached::AnyEvent - AnyEvent Compatible Memcached Client
 
     $memd->disconnect();
 
+    # use ketama algorithm instead of the traditional one
+    my $memd = Cache::Memcached::AnyEvent->new({
+        ...
+        selector_class => 'Ketama',
+        # or, selector => $object 
+    });
+
+    # use binary protocol instead of text
+    my $memd = Cache::Memcached::AnyEvent->new({
+        ...
+        protocol_class => 'Binary',
+        # or, protocol => $object,
+    });
+
+
 =head1 DESRIPTION
 
 WARNING: BETA QUALITY CODE!
@@ -520,18 +535,48 @@ Set to 0 to disable auto-reconnecting
 
 =item compress_threshold => $number
 
-=item selector
+=item selector => $object
 
 The selector is an object responsible for selecting the appropriate
-Memcached server to store a particular key
+Memcached server to store a particular key. This object MUST implement
+the following methods:
 
-=item selector_class
+    $object->add_server( $host_port, $anyevent_handle );
+    my $handle = $object->get_handle( $key );
+
+By default if this argument is not specified, a selector object will
+automatically be created using the value of the C<selector_class>
+argument.
+
+=item selector_class => $class_name_or_fragment
+
+Specifies the selector class to be instantiated. The default value is "Traditional".
+
+If the class name is preceded by a single '+', then that class name with the
+'+' removed will be used as the class name. Otherwise, the prefix
+"Cache::Memcached::AnyEvent::Selector::" will be added to the value
+("Traditional" would be transformed to "Cache::Memcached::AnyEvent::Selector::Traditional")
 
 =item namespace => $namespace
 
 =item procotol => $object
 
+The protocol is an object responsible for handling the actual talking to
+the memcached servers. This object MUST implement all of the memcached
+interface supported by Cache::Memcached::AnyEvent
+
+By default if this argument is not specified, a protocol object will
+automatically be created using the value of the C<protocol_class>
+argument.
+
 =item protocol_class => $classname
+
+Specifies the protocol class to be instantiated. The default value is "Text".
+
+If the class name is preceded by a single '+', then that class name with the
+'+' removed will be used as the class name. Otherwise, the prefix
+"Cache::Memcached::AnyEvent::Protocol::" will be added to the value
+("Text" would be transformed to "Cache::Memcached::AnyEvent::Protocol::Text")
 
 =item reconnect_delay => $seconds
 
