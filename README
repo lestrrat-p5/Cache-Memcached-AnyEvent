@@ -1,3 +1,14 @@
+
+        my $servers   = $self->{_active_servers};
+        my $i         = $self->{hash_cb}->($key, $self);
+        my $handle    = $self->get_handle( $servers->[ $i ] );
+        if (! $handle) {
+            die "Could not find handle for $key";
+        }
+
+        return $handle;
+    }
+
 NAME
     Cache::Memcached::AnyEvent - AnyEvent Compatible Memcached Client
 
@@ -70,10 +81,11 @@ METHODS
         Set to 0 to disable auto-reconnecting
 
     compress_threshold => $number
-    hash_cb => $cb->($key, $memcached)
-        Specify hashing coderef. Callback must return an index to the list
-        of the servers, where $key belongs to.
+    selector
+        The selector is an object responsible for selecting the appropriate
+        Memcached server to store a particular key
 
+    selector_class
     namespace => $namespace
     procotol => $object
     protocol_class => $classname
@@ -101,7 +113,6 @@ METHODS
   incr($key, $delta[, $initial], $cb->($value))
   prepend($key, $value, $cb->($rc));
   protocol($object)
-  protocol_class($class)
   replace($key, $value[, $exptime, $noreply], $cb->($rc))
   remove($key, $cb->($rc))
     Alias to delete
