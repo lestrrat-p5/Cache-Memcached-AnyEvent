@@ -5,10 +5,20 @@ use String::CRC32 qw(crc32);
 
 sub new {
     my $class = shift;
-    bless { @_ }, $class;
+    bless { @_, buckets => [], bucketcount => 0 }, $class;
 }
 
-sub add_server {} # nothing to do, as long as we have memcached ref
+sub add_server {
+    my ($self, $server, $h) = @_;
+
+    my %b2h = map { ( $_ => $self->hashkey($_) ) } @{ $self->{buckets} };
+    $b2h{ $server } = $self->hashkey($server);
+
+    my @newbuckets = sort { $b2h{ $a } <=> $b2h{ $b } } keys %b2h;
+    $self->{buckets} = \@newbuckets;
+    $self->{bucketcount} = scalar @newbuckets;
+    ();
+}
 
 # for object definition's sake, it's good to make this a method
 # but for efficiency, this ->hashkey call is just stupid
@@ -19,9 +29,8 @@ sub hashkey {
 sub get_handle {
     my ($self, $key) = @_;
 
-    my $count = $self->{memcached}->{_active_server_count};
+    my $count = $self->{bucketcount};
     if ($count > 0) {
-        my $servers = $self->{memcached}->{_active_servers};
         my $handles = $self->{memcached}->{_server_handles};
 
         # short-circuit for when there's only one socket
@@ -31,8 +40,9 @@ sub get_handle {
     
         # if there are multiple servers, choose the right one
         my $hv = $self->hashkey( $key );
+        my $buckets = $self->{buckets};
         for my $i (1..20) {
-            my $handle = $handles->{ $servers->[ $hv % $count ] };
+            my $handle = $handles->{ $buckets->[ $hv % $count ] };
             if ($handle) {
                 return $handle;
             }
