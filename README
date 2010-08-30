@@ -1,14 +1,3 @@
-
-        my $servers   = $self->{_active_servers};
-        my $i         = $self->{hash_cb}->($key, $self);
-        my $handle    = $self->get_handle( $servers->[ $i ] );
-        if (! $handle) {
-            die "Could not find handle for $key";
-        }
-
-        return $handle;
-    }
-
 NAME
     Cache::Memcached::AnyEvent - AnyEvent Compatible Memcached Client
 
@@ -27,6 +16,20 @@ SYNOPSIS
         });
 
         $memd->disconnect();
+
+        # use ketama algorithm instead of the traditional one
+        my $memd = Cache::Memcached::AnyEvent->new({
+            ...
+            selector_class => 'Ketama',
+            # or, selector => $object 
+        });
+
+        # use binary protocol instead of text
+        my $memd = Cache::Memcached::AnyEvent->new({
+            ...
+            protocol_class => 'Binary',
+            # or, protocol => $object,
+        });
 
 DESRIPTION
     WARNING: BETA QUALITY CODE!
@@ -81,14 +84,48 @@ METHODS
         Set to 0 to disable auto-reconnecting
 
     compress_threshold => $number
-    selector
+    selector => $object
         The selector is an object responsible for selecting the appropriate
-        Memcached server to store a particular key
+        Memcached server to store a particular key. This object MUST
+        implement the following methods:
 
-    selector_class
+            $object->add_server( $host_port, $anyevent_handle );
+            my $handle = $object->get_handle( $key );
+
+        By default if this argument is not specified, a selector object will
+        automatically be created using the value of the "selector_class"
+        argument.
+
+    selector_class => $class_name_or_fragment
+        Specifies the selector class to be instantiated. The default value
+        is "Traditional".
+
+        If the class name is preceded by a single '+', then that class name
+        with the '+' removed will be used as the class name. Otherwise, the
+        prefix "Cache::Memcached::AnyEvent::Selector::" will be added to the
+        value ("Traditional" would be transformed to
+        "Cache::Memcached::AnyEvent::Selector::Traditional")
+
     namespace => $namespace
     procotol => $object
+        The protocol is an object responsible for handling the actual
+        talking to the memcached servers. This object MUST implement all of
+        the memcached interface supported by Cache::Memcached::AnyEvent
+
+        By default if this argument is not specified, a protocol object will
+        automatically be created using the value of the "protocol_class"
+        argument.
+
     protocol_class => $classname
+        Specifies the protocol class to be instantiated. The default value
+        is "Text".
+
+        If the class name is preceded by a single '+', then that class name
+        with the '+' removed will be used as the class name. Otherwise, the
+        prefix "Cache::Memcached::AnyEvent::Protocol::" will be added to the
+        value ("Text" would be transformed to
+        "Cache::Memcached::AnyEvent::Protocol::Text")
+
     reconnect_delay => $seconds
         Amount of time to wait between reconnect attempts
 
@@ -96,6 +133,9 @@ METHODS
         List of servers to use.
 
     %args can also be a hashref.
+
+  auto_reconnect([$bool]);
+    Get/Set auto_reconnect flag.
 
   add($key, $value[, $exptime, $noreply], $cb->($rc))
   append($key, $value, $cb->($rc))
@@ -120,7 +160,7 @@ METHODS
   servers()
   set($key, $value[, $exptime, $noreply], $cb->($rc))
   stats($cmd, $cb->(\%stats))
-  version($cb->(\%result))
+  version( $cb->(\%result) )
 TODO
     Binary stats is not yet implemented.
     Other hashing mechanisms. Consistent Hashing (patches welcome)

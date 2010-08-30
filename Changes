@@ -1,6 +1,13 @@
 Changes
 =======
 
+0.00018_02 - 30 Aug 2010
+    * Documentation
+    * Add Cache::Memcached compatibility tests
+
+    !!! BACKWARD INCOMPATIBLE CHANGES !!!
+    * Made many methods private.
+
 0.00018_01 - 30 Aug 2010
     * Fix a problem with the regular server selection algorithm,
       where the insertion order of the servers would change which
@@ -9,6 +16,7 @@ Changes
       the above change can be implemented cleanly
     * Add Ketama hashing while we're at it.
 
+    !!! BACKWARD INCOMPATIBLE CHANGES !!!
     * Removed protocol_class accessor.
 
 0.00018 - 29 Jul 2010
