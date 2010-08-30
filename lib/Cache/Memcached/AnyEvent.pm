@@ -630,8 +630,6 @@ Alias to delete
 
 =item Binary stats is not yet implemented.
 
-=item Other hashing mechanisms. Consistent Hashing (patches welcome)
-
 =back
 
 =head1 AUTHOR
