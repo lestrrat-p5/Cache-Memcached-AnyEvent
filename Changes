@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.00018_01 - 30 Aug 2010
+    * Fix a problem with the regular server selection algorithm,
+      where the insertion order of the servers would change which
+      server gets selected. Reported by mdorman
+    * Re-enable an object based server selector (Selector), so that
+      the above change can be implemented cleanly
+    * Add Ketama hashing while we're at it.
+
 0.00018 - 29 Jul 2010
     * Add flush_all() method (mdorman)
     * Allow passing a condvar instead of a callback subroutine (mdorman)

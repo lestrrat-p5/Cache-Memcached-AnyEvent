@@ -21,7 +21,7 @@ use constant +{
     COMPRESS_SAVINGS => 0.20,
 };
 
-our $VERSION = '0.00018';
+our $VERSION = '0.00018_01';
 
 sub new {
     my $class = shift;
