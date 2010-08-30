@@ -23,7 +23,10 @@ sub run {
     $cv = AE::cv;
 
     for (1..40) {
-        my $mc = test_client(namespace => 'mytest.') or die;
+        my $mc = test_client(
+            protocol_class => $protocol,
+            selector_class => $selector,
+            namespace => 'mytest.') or die;
         $cv->begin;
         $mc->get (foo => sub {
             my $value = shift;
