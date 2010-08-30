@@ -462,5 +462,41 @@ __END__
 
 Cache::Memcached::AnyEvent::Protocol::Binary - Implements Memcached Binary Protocol
 
+=head1 SYNOPSIS
+
+    use Cache::Memcached::AnyEvent;
+    my $memd = Cache::Memcached::AnyEvent->new({
+        ...
+        protocol_class => 'Binary'
+    });
+
+=head1 METHODS
+
+=head2 add
+
+=head2 append
+
+=head2 decr
+
+=head2 delete
+
+=head2 flush_all
+
+=head2 get
+
+=head2 get_multi
+
+=head2 incr
+
+=head2 prepend
+
+=head2 replace
+
+=head2 set
+
+=head2 stats
+
+=head2 version
+
 =cut
 

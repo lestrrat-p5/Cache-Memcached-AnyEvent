@@ -240,7 +240,7 @@ __END__
 
 Cache::Memcached::AnyEvent::Protocol::Text - Implements Memcached Text Protocol
 
-=head2 SYNOPSIS
+=head1 SYNOPSIS
 
     use Cache::Memcached::AnyEvent;
     my $memd = Cache::Memcached::AnyEvent->new({
@@ -248,7 +248,7 @@ Cache::Memcached::AnyEvent::Protocol::Text - Implements Memcached Text Protocol
         protocol_class => 'Text', # Default so you can omit
     });
 
-=head2 METHODS
+=head1 METHODS
 
 =head2 add
 
