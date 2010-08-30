@@ -12,11 +12,13 @@ sub run {
             selector_class => $selector,
             namespace => 'mytest.') or die;
         $cv->begin;
-        $mc->set (foo => bar => sub {
-            my $rc = shift;
-            is $rc, 1, 'Success setting key';
-            $cv->end;
-        });
+        $mc->flush_all( sub {
+            $mc->set (foo => bar => sub {
+                my $rc = shift;
+                is $rc, 1, 'Success setting key';
+                $cv->end;
+            });
+        } );
         $cv->recv;
     }
 
