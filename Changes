@@ -9,6 +9,8 @@ Changes
       the above change can be implemented cleanly
     * Add Ketama hashing while we're at it.
 
+    * Removed protocol_class accessor.
+
 0.00018 - 29 Jul 2010
     * Add flush_all() method (mdorman)
     * Allow passing a condvar instead of a callback subroutine (mdorman)
