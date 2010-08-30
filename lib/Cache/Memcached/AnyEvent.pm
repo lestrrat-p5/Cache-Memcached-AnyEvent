@@ -71,7 +71,7 @@ sub _build_helper {
 }
 
 BEGIN {
-    foreach my $attr qw(auto_reconncet compress_threshold reconnect_delay servers namespace) {
+    foreach my $attr qw(auto_reconnect compress_threshold reconnect_delay servers namespace) {
         eval <<EOSUB;
             sub $attr {
                 my \$self = shift;
@@ -108,7 +108,7 @@ sub selector {
     return $ret;
 }
 
-sub connect_one {
+sub _connect_one {
     my ($self, $server, $cv) = @_;
 
     return if $self->{_is_connecting}->{$server};
@@ -132,7 +132,7 @@ sub connect_one {
                 # if you need to close immediately, you need to call disconnect
                 $self->{_reconnect}->{$server} = AE::timer $self->{reconnect_delay}, 0, sub {
                     delete $self->{_reconnect}->{$server};
-                    $self->connect_one($server);
+                    $self->_connect_one($server);
                 };
             }
         } else {
@@ -155,7 +155,7 @@ sub connect_one {
                 on_error => sub {
                     my $h = delete $self->{_server_handles}->{$server};
                     $h->destroy();
-                    $self->connect_one($server) if $self->{auto_reconnect};
+                    $self->_connect_one($server) if $self->{auto_reconnect};
                     undef $h;
                 },
             );
@@ -200,7 +200,7 @@ sub connect {
     };
 
     foreach my $server ( @{ $self->{ servers } }) {
-        $self->connect_one($server, $connect_cv);
+        $self->_connect_one($server, $connect_cv);
     }
 }
 
@@ -208,7 +208,7 @@ sub add {
     my ($self, @args) = @_;
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $exptime, $noreply) = @args;
-    $self->push_queue( 
+    $self->_push_queue( 
         $self->protocol, 'add', $key, $value, $exptime, $noreply, $cb );
 }
 
@@ -216,71 +216,71 @@ sub decr {
     my ($self, @args) = @_;
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $initial) = @args;
-    $self->push_queue( $self->protocol, 'decr', $key, $value, $initial, $cb );
+    $self->_push_queue( $self->protocol, 'decr', $key, $value, $initial, $cb );
 }
 
 sub delete {
     my ($self, @args) = @_;
     my $cb       = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my $noreply  = !defined $cb;
-    $self->push_queue( $self->protocol, 'delete', @args, $noreply, $cb );
+    $self->_push_queue( $self->protocol, 'delete', @args, $noreply, $cb );
 }
 
 sub get {
     my ($self, $key, $cb) = @_;
-    $self->push_queue( $self->protocol, 'get', $key, $cb );
+    $self->_push_queue( $self->protocol, 'get', $key, $cb );
 }
 
 sub get_handle { shift->{_server_handles}->{ $_[0] } }
 
 sub get_multi {
     my ($self, $keys, $cb) = @_;
-    $self->push_queue( $self->protocol, 'get_multi', $keys, $cb );
+    $self->_push_queue( $self->protocol, 'get_multi', $keys, $cb );
 }
 
 sub incr {
     my ($self, @args) = @_;
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $initial) = @args;
-    $self->push_queue( $self->protocol, 'incr', $key, $value, $initial, $cb );
+    $self->_push_queue( $self->protocol, 'incr', $key, $value, $initial, $cb );
 }
 
 sub replace {
     my ($self, @args) = @_;
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $exptime, $noreply) = @args;
-    $self->push_queue( $self->protocol, 'replace', $key, $value, $exptime, $noreply, $cb );
+    $self->_push_queue( $self->protocol, 'replace', $key, $value, $exptime, $noreply, $cb );
 }
 
 sub set {
     my ($self, @args) = @_;
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($key, $value, $exptime, $noreply) = @args;
-    $self->push_queue( $self->protocol, 'set', $key, $value, $exptime, $noreply, $cb);
+    $self->_push_queue( $self->protocol, 'set', $key, $value, $exptime, $noreply, $cb);
 }
 
 sub append {
     my ($self, @args) = @_;
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
-    $self->push_queue( $self->protocol, 'append', @args, undef, undef, $cb);
+    $self->_push_queue( $self->protocol, 'append', @args, undef, undef, $cb);
 }
 
 sub prepend {
     my ($self, @args) = @_;
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
-    $self->push_queue( $self->protocol, 'prepend', @args, undef, undef, $cb);
+    $self->_push_queue( $self->protocol, 'prepend', @args, undef, undef, $cb);
 }
 
 sub stats {
     my ($self, @args) = @_;
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($name) = @args;
-    $self->push_queue( $self->protocol, 'stats', $name, $cb );
+    $self->_push_queue( $self->protocol, 'stats', $name, $cb );
 }
 
 sub version {
     my ($self, $cb) = @_;
-    $self->push_queue( $self->protocol, 'version', $cb);
+    $self->_push_queue( $self->protocol, 'version', $cb);
 }
 
 sub flush_all {
@@ -288,10 +288,10 @@ sub flush_all {
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my $noreply = !!$cb;
     my $delay = shift @args || 0;
-    $self->push_queue( $self->protocol, 'flush_all', $delay, $noreply, $cb );
+    $self->_push_queue( $self->protocol, 'flush_all', $delay, $noreply, $cb );
 }
 
-sub push_queue {
+sub _push_queue {
     my ($self, @args) = @_;
     push @{$self->{queue}}, [ @args ];
     $self->_drain_queue unless $self->{_is_draining};
@@ -350,23 +350,10 @@ sub DESTROY {
 }
     
 sub get_handle_for {
-    my ($self, $key) = @_;
-    $self->{selector}->get_handle( $key );
+    $_[0]->{selector}->get_handle($_[1]);
 }
-=head1
 
-    my $servers   = $self->{_active_servers};
-    my $i         = $self->{hash_cb}->($key, $self);
-    my $handle    = $self->get_handle( $servers->[ $i ] );
-    if (! $handle) {
-        die "Could not find handle for $key";
-    }
-
-    return $handle;
-}
-=cut
-
-sub prepare_key {
+sub _prepare_key {
     my ($self, $key) = @_;
     if (my $ns = $self->{namespace}) {
         $key = $ns . $key;
@@ -374,7 +361,7 @@ sub prepare_key {
     return $key;
 }
 
-sub decode_key_value {
+sub _decode_key_value {
     my ($self, $key, $flags, $data) = @_;
 
     if (my $ns = $self->{namespace}) {
@@ -392,7 +379,7 @@ sub decode_key_value {
     return ($key, $data);
 }
 
-sub decode_key {
+sub _decode_key {
     my ($self, $key) = @_;
 
     if (my $ns = $self->{namespace}) {
@@ -401,7 +388,7 @@ sub decode_key {
     return $key;
 }
 
-sub prepare_value {
+sub _prepare_value {
     my ($self, $cmd, $value, $exptime) = @_;
 
     my $flags = 0;
@@ -589,6 +576,10 @@ List of servers to use.
 =back
 
 C<%args> can also be a hashref.
+
+=head2 auto_reconnect([$bool]);
+
+Get/Set auto_reconnect flag.
 
 =head2 add($key, $value[, $exptime, $noreply], $cb->($rc))
 
