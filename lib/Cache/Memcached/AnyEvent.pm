@@ -349,7 +349,7 @@ sub DESTROY {
     $self->disconnect;
 }
     
-sub get_handle_for {
+sub _get_handle_for {
     $_[0]->{selector}->get_handle($_[1]);
 }
 
@@ -622,7 +622,7 @@ Alias to delete
 
 =head2 stats($cmd, $cb->(\%stats))
 
-=head2 version($cb->(\%result))
+=head2 version( $cb->(\%result) )
 
 =head1 TODO
 

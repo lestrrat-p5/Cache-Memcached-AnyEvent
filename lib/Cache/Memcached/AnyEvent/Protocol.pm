@@ -23,4 +23,10 @@ Cache::Memcached::AnyEvent::Protocol - Base Class For Memcached Protocol
     use strict;
     use base 'Cache::Memcached::AnyEvent::Protocol';
 
+=head1 METHODS
+
+=head2 new
+
+=head2 prepare_handle
+
 =cut

@@ -284,7 +284,7 @@ sub _status_str {
         sub {
             my ($self, $guard, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
             my $fq_key = $memcached->_prepare_key( $key );
-            my $handle = $memcached->get_handle_for( $fq_key );
+            my $handle = $memcached->_get_handle_for( $fq_key );
 
             my ($write_data, $write_len, $flags, $expires) =
                 $memcached->_prepare_value( $cmd, $value, $exptime || 0);
@@ -310,7 +310,7 @@ sub delete {
     my ($self, $guard, $memcached, $key, $noreply, $cb) = @_;
 
     my $fq_key = $memcached->_prepare_key($key);
-    my $handle = $memcached->get_handle_for($fq_key);
+    my $handle = $memcached->_get_handle_for($fq_key);
 
     $handle->push_write( memcached_bin => MEMD_DELETE, $fq_key );
     $handle->push_read( memcached_bin => sub {
@@ -323,7 +323,7 @@ sub get {
     my ($self, $guard, $memcached, $key, $cb) = @_;
 
     my $fq_key = $memcached->_prepare_key( $key );
-    my $handle = $memcached->get_handle_for( $fq_key );
+    my $handle = $memcached->_get_handle_for( $fq_key );
     $handle->push_write(memcached_bin => MEMD_GETK, $fq_key);
     $handle->push_read(memcached_bin => sub {
         my $msg = shift;
@@ -344,7 +344,7 @@ sub get_multi {
 
     foreach my $key (@$keys) {
         my $fq_key = $memcached->_prepare_key( $key );
-        my $handle = $memcached->get_handle_for( $fq_key );
+        my $handle = $memcached->_get_handle_for( $fq_key );
         my $list = $handle2keys{ $handle };
         if (! $list) {
             $handle2keys{$handle} = [ $handle, $fq_key ];
@@ -390,7 +390,7 @@ sub get_multi {
             my $expires = defined $initial ? 0 : 0xffffffff;
             $initial ||= 0;
             my $fq_key = $memcached->_prepare_key( $key );
-            my $handle = $memcached->get_handle_for($fq_key);
+            my $handle = $memcached->_get_handle_for($fq_key);
             my $extras;
             if (HAS_64BIT) {
                 $extras = pack('Q2L', $value, $initial, $expires );
@@ -487,6 +487,8 @@ Cache::Memcached::AnyEvent::Protocol::Binary - Implements Memcached Binary Proto
 =head2 get_multi
 
 =head2 incr
+
+=head2 prepare_handle
 
 =head2 prepend
 

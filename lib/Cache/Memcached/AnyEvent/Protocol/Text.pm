@@ -8,7 +8,7 @@ use base 'Cache::Memcached::AnyEvent::Protocol';
         return sub {
             my ($self, $guard, $memcached, $key, $value, $initial, $cb) = @_;
             my $fq_key = $memcached->_prepare_key( $key );
-            my $handle = $memcached->get_handle_for( $fq_key );
+            my $handle = $memcached->_get_handle_for( $fq_key );
         
             $value ||= 1;
             my @command = ($cmd => $fq_key => $value);
@@ -37,7 +37,7 @@ sub delete {
     my ($self, $guard, $memcached, $key, $noreply, $cb) = @_;
 
     my $fq_key = $memcached->_prepare_key( $key );
-    my $handle = $memcached->get_handle_for( $fq_key );
+    my $handle = $memcached->_get_handle_for( $fq_key );
 
     my @command = (delete => $fq_key);
     $noreply = 0; # XXX - FIXME
@@ -59,7 +59,7 @@ sub get {
     my ($self, $guard, $memcached, $key, $cb) = @_;
 
     my $fq_key = $memcached->_prepare_key( $key );
-    my $handle = $memcached->get_handle_for( $fq_key );
+    my $handle = $memcached->_get_handle_for( $fq_key );
 
     $handle->push_write( "get $fq_key\r\n" );
     $handle->push_read( line => sub {
@@ -98,7 +98,7 @@ sub get_multi {
     my %keysinserver;
     foreach my $key (@$keys) {
         my $fq_key = $memcached->_prepare_key( $key );
-        my $handle = $memcached->get_handle_for( $fq_key );
+        my $handle = $memcached->_get_handle_for( $fq_key );
         my $list = $keysinserver{ $handle };
         if (! $list) {
             $keysinserver{ $handle } = $list = [ $handle, $fq_key ];
@@ -140,7 +140,7 @@ sub get_multi {
         sub {
             my ($self, $guard, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
             my $fq_key = $memcached->_prepare_key( $key );
-            my $handle = $memcached->get_handle_for( $fq_key );
+            my $handle = $memcached->_get_handle_for( $fq_key );
 
             my ($write_data, $write_len, $flags, $expires) =
                 $memcached->_prepare_value( $cmd, $value, $exptime );
