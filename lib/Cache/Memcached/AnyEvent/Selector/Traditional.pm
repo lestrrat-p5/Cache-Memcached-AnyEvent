@@ -55,3 +55,43 @@ sub get_handle {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Cache::Memcached::AnyEvent::Selector::Traditional - Traditional Server Selection Algorithm (ala Cache::Memcached)
+
+=head1 SYNOPSIS
+
+    use Cache::Memcached::AnyEvent;
+    my $memd = Cache::Memcached::AnyEvent->new({
+        ...
+        selector_class => 'Traditional', # Default, so you can omit
+    });
+
+=head1 DESCRIPTION
+
+Implements the default server selection mechanism, as implemented by
+Cache::Memcached. You do not need to explicitly specify this, as this is
+the default selector.
+
+=head1 METHODS
+
+=head2 $class->new( memcached => $memd )
+
+Constructor.
+
+=head2 $selector->add_server( $server, $handle )
+
+Called when a new server connection is made.
+
+=head2 $handle = $selector->get_handle( $key )
+
+Returns the AnyEvent handle that is responsible for handling C<$key>
+
+=head2 $hash = $selector->hashkey( $key )
+
+Returns the hash value for key C<$key>
+
+=cut
