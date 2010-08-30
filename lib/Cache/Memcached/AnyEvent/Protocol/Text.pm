@@ -240,4 +240,40 @@ __END__
 
 Cache::Memcached::AnyEvent::Protocol::Text - Implements Memcached Text Protocol
 
+=head2 SYNOPSIS
+
+    use Cache::Memcached::AnyEvent;
+    my $memd = Cache::Memcached::AnyEvent->new({
+        ...
+        protocol_class => 'Text', # Default so you can omit
+    });
+
+=head2 METHODS
+
+=head2 add
+
+=head2 append
+
+=head2 decr
+
+=head2 delete
+
+=head2 flush_all
+
+=head2 get
+
+=head2 get_multi
+
+=head2 incr
+
+=head2 prepend
+
+=head2 replace
+
+=head2 set
+
+=head2 stats
+
+=head2 version
+
 =cut
