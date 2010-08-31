@@ -11,6 +11,7 @@ requires 'Storable';
 
 test_requires 'Test::More' => '0.94';
 test_requires 'Test::Memcached' => '0.00003';
+test_requires 'Test::Requires';
 
 recommends 'Compress::Zlib';
 
