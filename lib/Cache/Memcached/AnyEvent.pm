@@ -117,54 +117,58 @@ sub _connect_one {
     $port ||= 11211;
 
     $self->{_is_connecting}->{$server} = tcp_connect $host, $port, sub {
-        my ($fh, $host, $port) = @_;
-
-        delete $self->{_is_connecting}->{$server}; # thanks, buddy
-        if (! $fh) {
-            # connect failed
-            warn "failed to connect to $server";
-
-            if ($self->{auto_reconnect} > $self->{_connect_attempts}->{ $server }++) {
-                # XXX this watcher holds a reference to $self, which means
-                # it will make your program wait for it to fire until 
-                # auto_reconnect attempts have been made. 
-                # if you need to close immediately, you need to call disconnect
-                $self->{_reconnect}->{$server} = AE::timer $self->{reconnect_delay}, 0, sub {
-                    delete $self->{_reconnect}->{$server};
-                    $self->_connect_one($server);
-                };
-            }
-        } else {
-            my $h; $h = AnyEvent::Handle->new(
-                fh => $fh,
-                on_drain => sub {
-                    my $h = shift;
-                    if (defined $h->{wbuf} && $h->{wbuf} eq "") {
-                        delete $h->{wbuf}; $h->{wbuf} = "";
-                    }
-                    if (defined $h->{rbuf} && $h->{rbuf} eq "") {
-                        delete $h->{rbuf}; $h->{rbuf} = "";
-                    }
-                },
-                on_eof => sub {
-                    my $h = delete $self->{_server_handles}->{$server};
-                    $h->destroy();
-                    undef $h;
-                },
-                on_error => sub {
-                    my $h = delete $self->{_server_handles}->{$server};
-                    $h->destroy();
-                    $self->_connect_one($server) if $self->{auto_reconnect};
-                    undef $h;
-                },
-            );
-
-            $self->_add_active_server( $server, $h );
-            delete $self->{_connect_attempts}->{ $server };
-            $self->protocol->prepare_handle( $fh );
-        }
+        $self->_on_tcp_connect($server, @_);
         $cv->end if $cv;
     };
+}
+
+sub _on_tcp_connect {
+    my ($self, $server, $fh, $host, $port) = @_;
+
+    delete $self->{_is_connecting}->{$server}; # thanks, buddy
+    if (! $fh) {
+        # connect failed
+        warn "failed to connect to $server";
+
+        if ($self->{auto_reconnect} > $self->{_connect_attempts}->{ $server }++) {
+            # XXX this watcher holds a reference to $self, which means
+            # it will make your program wait for it to fire until 
+            # auto_reconnect attempts have been made. 
+            # if you need to close immediately, you need to call disconnect
+            $self->{_reconnect}->{$server} = AE::timer $self->{reconnect_delay}, 0, sub {
+                delete $self->{_reconnect}->{$server};
+                $self->_connect_one($server);
+            };
+        }
+    } else {
+        my $h; $h = AnyEvent::Handle->new(
+            fh => $fh,
+            on_drain => sub {
+                my $h = shift;
+                if (defined $h->{wbuf} && $h->{wbuf} eq "") {
+                    delete $h->{wbuf}; $h->{wbuf} = "";
+                }
+                if (defined $h->{rbuf} && $h->{rbuf} eq "") {
+                    delete $h->{rbuf}; $h->{rbuf} = "";
+                }
+            },
+            on_eof => sub {
+                my $h = delete $self->{_server_handles}->{$server};
+                $h->destroy();
+                undef $h;
+            },
+            on_error => sub {
+                my $h = delete $self->{_server_handles}->{$server};
+                $h->destroy();
+                $self->_connect_one($server) if $self->{auto_reconnect};
+                undef $h;
+            },
+        );
+
+        $self->_add_active_server( $server, $h );
+        delete $self->{_connect_attempts}->{ $server };
+        $self->protocol->prepare_handle( $fh );
+    }
 }
 
 sub _add_active_server {
