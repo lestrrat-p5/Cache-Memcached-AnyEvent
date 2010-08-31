@@ -94,7 +94,6 @@ sub get_multi {
         return;
     }
 
-    my $count = $memcached->{_active_server_count};
     my %keysinserver;
     foreach my $key (@$keys) {
         my $fq_key = $memcached->_prepare_key( $key );
