@@ -382,15 +382,6 @@ sub _decode_key_value {
     return ();
 }
 
-sub _decode_key {
-    my ($self, $key) = @_;
-
-    if (my $ns = $self->{namespace}) {
-        $key =~ s/^$ns//;
-    }
-    return $key;
-}
-
 sub _prepare_value {
     my ($self, $cmd, $value, $exptime) = @_;
 
