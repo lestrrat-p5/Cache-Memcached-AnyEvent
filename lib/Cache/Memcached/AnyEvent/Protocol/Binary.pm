@@ -282,16 +282,16 @@ sub _status_str {
         my ($cmd, $opcode) = @_;
 
         sub {
-            my ($self, $guard, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
+            my ($self, $guard, $memcached, $key, $value, $expires, $noreply, $cb) = @_;
             my $fq_key = $memcached->_prepare_key( $key );
             my $handle = $memcached->_get_handle_for( $fq_key );
+            my ($len, $flags);
 
-            my ($write_data, $write_len, $flags, $expires) =
-                $memcached->_prepare_value( $cmd, $value, $exptime || 0);
+            $memcached->_prepare_value( $cmd, \$value, \$len, \$expires, \$flags);
 
             my $extras = pack('N2', $flags, $expires);
 
-            $handle->push_write( memcached_bin => $opcode, $fq_key, $extras, $write_data );
+            $handle->push_write( memcached_bin => $opcode, $fq_key, $extras, $value );
             $handle->push_read( memcached_bin => sub {
                 undef $guard;
                 $cb->($_[0]->{status} == 0, $_[0]->{value}, $_[0]);

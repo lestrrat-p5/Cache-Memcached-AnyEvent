@@ -139,13 +139,13 @@ sub get_multi {
     my $generator = sub {
         my $cmd = shift;
         sub {
-            my ($self, $guard, $memcached, $key, $value, $exptime, $noreply, $cb) = @_;
+            my ($self, $guard, $memcached, $key, $value, $expires, $noreply, $cb) = @_;
             my $fq_key = $memcached->_prepare_key( $key );
             my $handle = $memcached->_get_handle_for( $fq_key );
+            my ($len, $flags);
 
-            my ($write_data, $write_len, $flags, $expires) =
-                $memcached->_prepare_value( $cmd, $value, $exptime );
-            $handle->push_write("$cmd $fq_key $flags $expires $write_len\r\n$write_data\r\n");
+            $memcached->_prepare_value( $cmd, \$value, \$len, \$expires, \$flags );
+            $handle->push_write("$cmd $fq_key $flags $expires $len\r\n$value\r\n");
             if (! $noreply) {
                 $handle->push_read(regex => qr{^(NOT_)?STORED\r\n}, sub {
                     undef $guard;
