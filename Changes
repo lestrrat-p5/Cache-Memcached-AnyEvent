@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.00018_03 - 31 Aug 2010
+    * Some cleanup to remove old crud.
+    * Add Test::Requires as a requirement
+
 0.00018_02 - 30 Aug 2010
     * Documentation
     * Add Cache::Memcached compatibility tests

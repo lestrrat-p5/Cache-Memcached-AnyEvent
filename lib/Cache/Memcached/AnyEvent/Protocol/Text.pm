@@ -67,9 +67,10 @@ sub get {
         if ($line =~ /^VALUE (\S+) (\S+) (\S+)(?: (\S+))?/)  {
             my ($rkey, $rflags, $rsize, $rcas) = ($1, $2, $3, $4);
             $handle->push_read(chunk => $rsize, sub {
-                my ($key, $data) = $memcached->_decode_key_value($rkey, $rflags, $_[1]);
+                my $value = $_[1];
+                $memcached->_decode_key_value(\$rkey, \$rflags, \$value);
                 $handle->push_read(regex => qr{END\r\n}, cb => sub {
-                    $cb->( $data );
+                    $cb->( $value );
                     undef $guard;
                 } );
             });
@@ -118,8 +119,9 @@ sub get_multi {
             } elsif ($line =~ /^VALUE (\S+) (\S+) (\S+)(?: (\S+))?/)  {
                 my ($rkey, $rflags, $rsize, $rcas) = ($1, $2, $3, $4);
                 $handle->push_read(chunk => $rsize, sub {
-                    my ($key, $data) = $memcached->_decode_key_value($rkey, $rflags, $_[1]);
-                    $rv{ $key } = $data; # XXX whatabout CAS?
+                    my $value = $_[1];
+                    $memcached->_decode_key_value(\$rkey, \$rflags, \$value);
+                    $rv{ $rkey } = $value; # XXX whatabout CAS?
                     $handle->push_read(regex => qr{\r\n}, cb => sub { "noop" });
                     $handle->push_read(line => $code);
                 } );

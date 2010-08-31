@@ -329,7 +329,8 @@ sub get {
         my $msg = shift;
         my ($flags, $exptime) = unpack('N2', $msg->{extra});
         if (exists $msg->{key} && exists $msg->{value}) {
-            my ($key, $value) = $memcached->_decode_key_value($key, $flags, $msg->{value} );
+            my $value = $msg->{value};
+            $memcached->_decode_key_value(\$key, \$flags, \$value );
             undef $guard;
             $cb->($value);
         }
@@ -370,7 +371,8 @@ sub get_multi {
 
                 my ($flags, $exptime) = unpack('N2', $msg->{extra});
                 if (exists $msg->{key} && exists $msg->{value}) {
-                    my ($key, $value) = $memcached->_decode_key_value($key, $flags, $msg->{value} );
+                    my $value = $msg->{value};
+                    $memcached->_decode_key_value(\$key, \$flags, \$value );
                     $result{ $key } = $value;
                 }
                 $cv->end;

@@ -163,7 +163,6 @@ METHODS
   version( $cb->(\%result) )
 TODO
     Binary stats is not yet implemented.
-    Other hashing mechanisms. Consistent Hashing (patches welcome)
 
 AUTHOR
     Daisuke Maki "<daisuke@endeworks.jp>"

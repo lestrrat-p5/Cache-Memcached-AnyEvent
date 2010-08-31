@@ -30,7 +30,7 @@ sub new {
     my $selector_class = delete $args{selector_class} || 'Traditional';
     my $self  = bless {
         auto_reconnect => 5,
-        compess_threshold => 10_000,
+        compress_threshold => 10_000,
         protocol => undef,
         reconnect_delay => 5,
         servers => undef,
@@ -365,21 +365,21 @@ sub _prepare_key {
 }
 
 sub _decode_key_value {
-    my ($self, $key, $flags, $data) = @_;
+    my ($self, $key_ref, $flags_ref, $data_ref) = @_;
 
     if (my $ns = $self->{namespace}) {
-        $key =~ s/^$ns//;
+        $$key_ref =~ s/^$ns//;
     }
 
-    if (defined $flags && defined $data) {
-        if ($flags & F_COMPRESS() && HAVE_ZLIB()) {
-            $data = Compress::Zlib::memGunzip($data);
+    if (defined $$flags_ref && defined $$data_ref) {
+        if ($$flags_ref & F_COMPRESS() && HAVE_ZLIB()) {
+            $$data_ref = Compress::Zlib::memGunzip($$data_ref);
         }
-        if ($flags & F_STORABLE()) {
-            $data = Storable::thaw($data);
+        if ($$flags_ref & F_STORABLE()) {
+            $$data_ref = Storable::thaw($data_ref);
         }
     }
-    return ($key, $data);
+    return ();
 }
 
 sub _decode_key {
@@ -408,6 +408,7 @@ sub _prepare_value {
         HAVE_ZLIB() &&
         $len >= $threshold
     ;
+
     if ($compressable) {
         my $c_val = Compress::Zlib::memGzip($value);
         my $c_len = bytes::length($c_val);
