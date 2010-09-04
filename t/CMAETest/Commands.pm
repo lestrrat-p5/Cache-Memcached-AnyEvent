@@ -31,6 +31,21 @@ my @callbacks = (
         };
         $memd->get("${key}_big", $cb);
     },
+    sub {
+        my ($memd, $cv) = @_;
+        my $value = { complex => [ 'structure' ], that => { would => { require_the_use_of => 'Storable' } } };
+        my $cb = AE::cv { ok $_[0]; $cv->end };
+        $memd->set("${key}_complex", $value, $cb);
+    },
+    sub {
+        my ($memd, $cv) = @_;
+        my $value = { complex => [ 'structure' ], that => { would => { require_the_use_of => 'Storable' } } };
+        my $cb = AE::cv {
+            is_deeply $_[0]->recv, $value, "Get on complex value";
+            $cv->end;
+        };
+        $memd->get("${key}_complex", $cb);
+    },
     sub { my ($memd, $cv) = @_; $memd->add($key, 'v1', sub { ok($_[0], 'Add'); $cv->end }); },
     sub { my ($memd, $cv) = @_; $memd->get($key, sub { is( $_[0], 'v1', 'Fetch'); $cv->end } ); },
     sub { my ($memd, $cv) = @_; $memd->set($key, 'v2', sub { ok($_[0], 'Set'); $cv->end }); },
