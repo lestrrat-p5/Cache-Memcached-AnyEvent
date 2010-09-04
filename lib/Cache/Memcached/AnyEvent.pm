@@ -376,7 +376,7 @@ sub _decode_key_value {
             $$data_ref = Compress::Zlib::memGunzip($$data_ref);
         }
         if ($$flags_ref & F_STORABLE()) {
-            $$data_ref = Storable::thaw($data_ref);
+            $$data_ref = Storable::thaw($$data_ref);
         }
     }
     return ();
