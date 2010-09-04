@@ -1,7 +1,8 @@
 Changes
 =======
 
-0.00018_03 - 31 Aug 2010
+0.00018_03 - 05 Sep 2010
+    * Stupid Stupid Stupid typo for complex values.
     * Some cleanup to remove old crud.
     * Add Test::Requires as a requirement
 
