@@ -1,6 +1,9 @@
 Changes
 =======
 
+0.00018_04 - 12 Sep 2010
+    * Add Test::Exception in prereq (rt #61159)
+
 0.00018_03 - 05 Sep 2010
     * Stupid Stupid Stupid typo for complex values.
     * Some cleanup to remove old crud.
