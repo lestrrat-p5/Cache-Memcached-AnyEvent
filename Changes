@@ -1,6 +1,9 @@
 Changes
 =======
 
+0.00019 - 13 Sep 2010
+    * Release previous changes as 0.00019
+
 0.00018_04 - 12 Sep 2010
     * Add Test::Exception in prereq (rt #61159)
 
