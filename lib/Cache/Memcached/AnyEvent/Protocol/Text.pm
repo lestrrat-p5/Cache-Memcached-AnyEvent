@@ -8,7 +8,9 @@ use base 'Cache::Memcached::AnyEvent::Protocol';
         return sub {
             my ($self, $guard, $memcached, $key, $value, $initial, $cb) = @_;
             my $fq_key = $memcached->_prepare_key( $key );
-            my $handle = $memcached->_get_handle_for( $fq_key );
+            # XXX Cache::Memcached does NOT using the fully qualified
+            # key value to calculate the value... beware!
+            my $handle = $memcached->_get_handle_for( $key );
         
             $value ||= 1;
             my @command = ($cmd => $fq_key => $value);
@@ -37,7 +39,9 @@ sub delete {
     my ($self, $guard, $memcached, $key, $noreply, $cb) = @_;
 
     my $fq_key = $memcached->_prepare_key( $key );
-    my $handle = $memcached->_get_handle_for( $fq_key );
+    # XXX Cache::Memcached does NOT using the fully qualified
+    # key value to calculate the value... beware!
+    my $handle = $memcached->_get_handle_for( $key );
 
     my @command = (delete => $fq_key);
     $noreply = 0; # XXX - FIXME
@@ -59,7 +63,9 @@ sub get {
     my ($self, $guard, $memcached, $key, $cb) = @_;
 
     my $fq_key = $memcached->_prepare_key( $key );
-    my $handle = $memcached->_get_handle_for( $fq_key );
+    # XXX Cache::Memcached does NOT using the fully qualified
+    # key value to calculate the value... beware!
+    my $handle = $memcached->_get_handle_for( $key );
 
     $handle->push_write( "get $fq_key\r\n" );
     $handle->push_read( line => sub {
@@ -98,14 +104,17 @@ sub get_multi {
     my %keysinserver;
     foreach my $key (@$keys) {
         my $fq_key = $memcached->_prepare_key( $key );
-        my $handle = $memcached->_get_handle_for( $fq_key );
+
+        # XXX Cache::Memcached does NOT using the fully qualified
+        # key value to calculate the value... beware!
+        my $handle = $memcached->_get_handle_for( $key );
         my $list = $keysinserver{ $handle };
         if (! $list) {
-            $keysinserver{ $handle } = $list = [ $handle, $fq_key ];
+            $keysinserver{ $handle } = $list = [ $handle ];
         }
         push @$list, $fq_key;
     }
-   
+
     my %rv;
     $cv->begin( sub { $_[0]->send(\%rv) } );
     foreach my $data (values %keysinserver) {
@@ -141,7 +150,9 @@ sub get_multi {
         sub {
             my ($self, $guard, $memcached, $key, $value, $expires, $noreply, $cb) = @_;
             my $fq_key = $memcached->_prepare_key( $key );
-            my $handle = $memcached->_get_handle_for( $fq_key );
+            # XXX Cache::Memcached does NOT using the fully qualified
+            # key value to calculate the value... beware!
+            my $handle = $memcached->_get_handle_for( $key );
             my ($len, $flags);
 
             $memcached->_prepare_value( $cmd, \$value, \$len, \$expires, \$flags );
