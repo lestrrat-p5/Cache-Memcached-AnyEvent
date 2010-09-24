@@ -1,10 +1,10 @@
 use strict;
 use blib;
 use Cache::Memcached;
-use Cache::Memcached::Fast;
 use Cache::Memcached::AnyEvent;
 use Data::Dumper;
 use Benchmark qw(cmpthese);
+use Test::More;
 
 print <<EOM;
 
@@ -17,7 +17,7 @@ Cache::Memcached::AnyEvent Benchmark
 
 2) Your servers should be specified in MEMCACHED_SERVERS environment variable.
    Multiple server names should be separated by comma. If the variable is not
-   set, 127.0.0.1:11211, 127.0.0.1:11212, 127.0.0.1:11213 are assumed.
+   set, Test::Memcached will start 5 servers on ports that it can find.
 
 EOM
 
@@ -35,61 +35,52 @@ if ($ENV{MEMCACHED_SERVERS}) {
     }
 }
 
+my @keys = ('a'..'z');
+
 my %args = (
     servers => \@servers,
     namespace => join('.', time(), $$, rand(), '')
 );
-my $memd = Cache::Memcached->new(\%args);
-my $memd_fast = Cache::Memcached::Fast->new(\%args);
-my $memd_anyevent = Cache::Memcached::AnyEvent->new(\%args);
-my $memd_anyevent_ketama = Cache::Memcached::AnyEvent->new({ %args,
-    selector_class => 'Ketama'
-});
-my $memd_anyevent_bin = Cache::Memcached::AnyEvent->new({ %args,
-    protocol_class => 'Binary',
-});
-# my $anyevent_memcached = AnyEvent::Memcached->new(%args);
 
-print <<EOM;
-
-Servers: @servers
-Cache::Memcached: $Cache::Memcached::VERSION
-Cache::Memcached::Fast: $Cache::Memcached::Fast::VERSION
-Cache::Memcached::AnyEvent: $Cache::Memcached::AnyEvent::VERSION
-
-EOM
-
-my @keys = ('a'..'z');
-$memd->set($_ => $_ x 2) for (@keys);
-use Data::Dumper;
-cmpthese(-1 => {
-    memd          => sub {
-        for (1..100) {
-            my $values = $memd->get_multi(@keys);
-        }
+my %datasets; %datasets = (
+    memd => {
+        name => 'Cache::Memcached',
+        object => Cache::Memcached->new(\%args),
+        version => $Cache::Memcached::VERSION,
     },
-    memd_fast     => sub {
+    memd_anyevent => {
+        name => 'Cache::Memcached::AnyEvent',
+        object => Cache::Memcached::AnyEvent->new(\%args),
+        version => $Cache::Memcached::AnyEvent::VERSION,
+    },
+    memd_anyevent_bin => {
+        name => 'Cache::Memcached::AnyEvent (Binary)',
+        object => Cache::Memcached::AnyEvent->new({
+            %args,
+            protocol_class => 'Binary',
+        }),
+        version => $Cache::Memcached::AnyEvent::VERSION,
+    },
+);
+
+my %runs = (
+    memd          => sub {
+        my $memd = $datasets{memd}->{object};
+        my @mykeys = map { join( '_', "memd", $_ ) } @keys;
         for (1..100) {
-            my $values = $memd->get_multi(@keys);
+            my $values = $memd->get_multi(@mykeys);
+            verify_values("memd", $values);
         }
     },
     memd_anyevent => sub {
         my $cv = AE::cv;
+        my $memd = $datasets{memd_anyevent}->{object};
+        my @mykeys =  map { "memd_anyevent_${_}" } @keys;
         for (1..100) {
             $cv->begin;
-            $memd_anyevent->get_multi(\@keys, sub {
+            $memd->get_multi(\@mykeys, sub {
                 my $values = shift;
-                $cv->end;
-            } );
-        }
-        $cv->recv;
-    },
-    memd_anyevent_ketama => sub {
-        my $cv = AE::cv;
-        for (1..100) {
-            $cv->begin;
-            $memd_anyevent_ketama->get_multi(\@keys, sub {
-                my $values = shift;
+                verify_values("memd_anyevent", $values);
                 $cv->end;
             } );
         }
@@ -97,14 +88,148 @@ cmpthese(-1 => {
     },
     memd_anyevent_bin => sub {
         my $cv = AE::cv;
+        my $memd = $datasets{memd_anyevent_bin}->{object};
+        my @mykeys = map { "memd_anyevent_bin_${_}" } @keys;
         for (1..100) {
             $cv->begin;
-            $memd_anyevent_bin->get_multi(\@keys, sub {
+            $memd->get_multi(\@mykeys, sub {
                 my $values = shift;
+                verify_values("memd_anyevent_bin", $values);
                 $cv->end;
             } );
         }
         $cv->recv;
     },
-});
+);
 
+# used to verify that we have all the values.
+sub verify_values {
+    my ($type, $values) = @_;
+    is_deeply( [ map { join('_', $type, $_) } @keys ], [ sort keys %$values ],
+        "[$type] got back the correct keys" );
+    is_deeply( $values, $datasets{$type}->{values}, "[$type] got back the correct value" );
+}
+
+if ( eval { require Cache::Memcached::Fast } && !$@ ) {
+    $datasets{memd_fast} = {
+        name => 'Cache::Memcached::Fast',
+        object => Cache::Memcached::Fast->new(\%args),
+        version => $Cache::Memcached::Fast::VERSION
+    };
+    $runs{memd_fast} = sub {
+        my $memd = $datasets{memd_fast}->{object};
+        my @mykeys = map { join( '_', "memd_fast", $_ ) } @keys;
+        for (1..100) {
+            my $values = $memd->get_multi(@mykeys);
+            verify_values("memd_fast", $values);
+        }
+    };
+}
+
+if ( eval { require Algorithm::ConsistentHash::Ketama } && !$@ ) {
+    $datasets{memd_anyevent_ketama} = {
+        name => 'Cache::Memcached::AnyEvent (Ketama)',
+        object => Cache::Memcached::AnyEvent->new({
+            %args,
+            selector_class => 'Ketama'
+        }),
+        version => $Cache::Memcached::AnyEvent::VERSION,
+    };
+    $runs{memd_anyevent_ketama} = sub {
+        my $cv = AE::cv;
+        my $memd = $datasets{memd_anyevent_ketama}->{object};
+        my @mykeys = map { "memd_anyevent_ketama_${_}" } @keys;
+        for (1..100) {
+            $cv->begin;
+            $memd->get_multi(\@mykeys, sub {
+                my $values = shift;
+                verify_values("memd_anyevent_ketama", $values);
+                $cv->end;
+            } );
+        }
+        $cv->recv;
+    },
+}
+
+if ( eval { require Memcached::Client } && !$@) {
+    $datasets{memd_client} = {
+        name => 'Memcached::Client',
+        object => Memcached::Client->new(\%args),
+        version => $Memcached::Client::VERSION
+    };
+    $datasets{memd_client_bin} = {
+        name => 'Memcached::Client',
+        object => Memcached::Client->new({
+            %args,
+            protocol_class => 'Binary',
+        }),
+        version => $Memcached::Client::VERSION
+    };
+    $runs{memd_client} = sub {
+        my $cv = AE::cv;
+        my $memd = $datasets{memd_client}->{object};
+        my @mykeys = map { "memd_client_$_" } @keys;
+        for (1..100) {
+            $cv->begin;
+            $memd->get_multi(\@mykeys, sub {
+                my $values = shift;
+                verify_values("memd_client", $values);
+                $cv->end;
+            } );
+        }
+        $cv->recv;
+    };
+    $runs{memd_client_bin} = sub {
+        my $cv = AE::cv;
+        my $memd = $datasets{memd_client}->{object};
+        for (1..100) {
+            $cv->begin;
+            $memd->get_multi([map { "memd_client_bin_$_" } @keys ], sub {
+                my $values = shift;
+                $cv->end;
+            } );
+        }
+        $cv->recv;
+    };
+}
+
+print <<EOM;
+
+Servers: @servers
+EOM
+foreach my $data ( values %datasets ) {
+    print "$data->{name}: $data->{version}\n";
+}
+
+{ # now prep the servers
+    $datasets{memd}->{object}->flush_all();
+    foreach my $type (qw(memd memd_fast memd_anyevent memd_anyevent_bin memd_client memd_client_bin)) {
+        foreach my $key (@keys) {
+            my $fqkey = join '_', $type, $key;
+            my $value = join('.', ($key) x 100);
+            $datasets{$type}->{values}->{$fqkey} = $value;
+            $datasets{memd}->{object}->set( $fqkey => $value );
+        }
+    }
+
+    # ketama uses a different distribution, so we need to create it using our
+    # client, which may look like cheating...
+
+    my $cv = AE::cv;
+    foreach my $type (qw(memd_anyevent_ketama)) {
+        foreach my $key (@keys) {
+            my $fqkey = join '_', $type, $key;
+            my $value = join('.', ($key) x 100);
+            $datasets{$type}->{values}->{$fqkey} = $value;
+            $cv->begin;
+            $datasets{memd_anyevent_ketama}->{object}->set( $fqkey => $value, sub { $cv->end } );
+        }
+    }
+    $cv->recv;
+}
+
+cmpthese(10 => \%runs);
+
+done_testing();
+
+__END__
