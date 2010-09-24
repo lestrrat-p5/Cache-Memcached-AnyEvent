@@ -603,6 +603,34 @@ Alias to delete
 
 =back
 
+=head1 CONTRIBUTIONS
+
+Contribution is welcome, but please make sure to follow this guideline:
+
+=over 4
+
+=item Please send changes AND tests.
+
+In case of changes that supposedly fixes incorrect behavior, you MUST provide
+me with a E<failing test case>. How should we know if you were hallucinating or just plain stupid if you can't reproduce it yourself?
+
+=item Please send code, not an essay.
+
+Please don't waste time trying to explain in a 10K email for stuff you can write in 10 lines of code.
+
+I'm sorry, but I'm usually not interested in your opinion until I see some code. Writing essays to describe a software problem is stupid.
+
+=item Please avoid emailing patches.
+
+If at all possible, please use github pull requests instead of emailing me patches. Patches are stupid.
+
+Please refer to the META.yml file for the repository location.
+
+=back
+
+So to summarize, contribution is welcome, but please don't be stupid.
+If you can't follow the guideline, you will not be taken seriously.
+
 =head1 AUTHOR
 
 Daisuke Maki C<< <daisuke@endeworks.jp> >>
