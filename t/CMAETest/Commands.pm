@@ -8,18 +8,37 @@ use Test::Exception;
 my $key = 'CMAETest.' . int(rand(1000));
 my @keys = map { "commands-$_" } (1..10);
 my @callbacks = (
+    sub { my ($memd, $cv) = @_; $memd->flush_all(sub { is($_[0], 1, 'Flush all records'); $cv->end }); },
     sub {
         my ($memd, $cv) = @_;
-        $memd->delete($key, sub { ok(1, 'Delete'); $cv->end });
+        my $cb = AE::cv {
+            is($_[0]->recv, 1, 'Flush all records (via condvar)');
+            $cv->end
+        };
+        $memd->flush_all($cb);
     },
-    sub { my ($memd, $cv) = @_; $memd->flush_all(sub { is($_[0], 1, 'Flush all records'); $cv->end }); },
-    sub { my ($memd, $cv) = @_; my $cb = AE::cv {is($_[0]->recv, 1, 'Flush all records'); $cv->end }; $memd->flush_all($cb); },
-    sub { my ($memd, $cv) = @_; $memd->get($key, sub { ok(!$_[0], "Get on non-existent value"); $cv->end }) },
-    sub { my ($memd, $cv) = @_; my $cb = AE::cv {ok(!$_[0]->recv, "Get on non-existent value"); $cv->end }; $memd->get($key, $cb) },
+    sub {
+        my ($memd, $cv) = @_;
+        $memd->get($key, sub { 
+            ok(!$_[0], "Get on non-existent value");
+            $cv->end
+        })
+    },
+    sub {
+        my ($memd, $cv) = @_;
+        my $cb = AE::cv {
+            ok(!$_[0]->recv, "Get on non-existent value (via cb)");
+            $cv->end
+        };
+        $memd->get($key, $cb)
+    },
     sub {
         my ($memd, $cv) = @_;
         my $value = "hoge" x 8192;
-        my $cb = AE::cv { ok $_[0]; $cv->end };
+        my $cb = AE::cv {
+            ok $_[0], "Set a big value";
+            $cv->end
+        };
         $memd->set("${key}_big", $value, $cb);
     },
     sub {
@@ -34,7 +53,10 @@ my @callbacks = (
     sub {
         my ($memd, $cv) = @_;
         my $value = { complex => [ 'structure' ], that => { would => { require_the_use_of => 'Storable' } } };
-        my $cb = AE::cv { ok $_[0]; $cv->end };
+        my $cb = AE::cv {
+            ok $_[0], "Set complex value";
+            $cv->end;
+        };
         $memd->set("${key}_complex", $value, $cb);
     },
     sub {
@@ -131,7 +153,7 @@ sub run {
 
         $cv = AE::cv;
         foreach my $code (@callbacks) {
-            $cv->begin;
+            $cv->begin();
             eval {
                 $code->($memd, $cv);
             };

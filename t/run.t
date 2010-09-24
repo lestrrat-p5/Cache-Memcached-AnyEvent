@@ -2,6 +2,7 @@ use strict;
 use Test::More;
 use Test::Memcached;
 use Test::Requires;
+use t::CMAETest::Consistency;
 use t::CMAETest::Commands;
 use t::CMAETest::ConnectFail;
 use t::CMAETest::CV;
@@ -40,7 +41,7 @@ if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
 
 foreach my $protocol qw(Text Binary) {
     foreach my $selector qw(Traditional Ketama) {
-        foreach my $pkg qw( t::CMAETest::Commands t::CMAETest::ConnectFail t::CMAETest::CV t::CMAETest::Dorman t::CMAETest::Stats ) {
+        foreach my $pkg qw( t::CMAETest::Commands t::CMAETest::ConnectFail t::CMAETest::CV t::CMAETest::Dorman t::CMAETest::Stats t::CMAETest::Consistency) {
             note "running $pkg test [$protocol/$selector]";
             subtest "$pkg [$protocol/$selector]" => sub {
                 if ( $selector eq 'Ketama' ) {
