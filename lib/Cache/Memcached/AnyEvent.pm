@@ -603,7 +603,7 @@ Alias to delete
 
 =back
 
-=head1 CONTRIBUTIONS
+=head1 CONTRIBUTING
 
 Contribution is welcome, but please make sure to follow this guideline:
 
