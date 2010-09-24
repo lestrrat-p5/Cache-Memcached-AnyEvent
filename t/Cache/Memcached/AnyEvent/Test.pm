@@ -5,7 +5,7 @@ use IO::Socket::INET;
 use Test::More;
 use base qw(Exporter);
 
-our @EXPORT = qw(test_client);
+our @EXPORT = qw(test_client test_servers);
 
 sub import {
     my $class = shift;
