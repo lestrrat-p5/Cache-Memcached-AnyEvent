@@ -47,6 +47,8 @@ sub new {
     $self->{selector} ||= $self->_build_selector( $selector_class );
     $self->{protocol} ||= $self->_build_protocol( $protocol_class );
 
+    $self->{selector}->set_servers( $self->{servers} );
+
     return $self;
 }
 
@@ -176,7 +178,12 @@ sub _add_active_server {
     push @{$self->{_active_servers}}, $server;
     $self->{_active_server_count}++;
     $self->{_server_handles}->{ $server } = $h;
-    $self->{selector}->add_server( $server, $h );
+}
+
+sub add_server {
+    my ($self, @servers) = @_;
+    push @{$self->{servers}}, @servers;
+    $self->selector->set_servers( $self->{servers} );
 }
 
 sub connect {
@@ -207,83 +214,60 @@ sub connect {
     }
 }
 
-sub add {
-    my ($self, @args) = @_;
-    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
-    my ($key, $value, $exptime, $noreply) = @args;
-    $self->_push_queue( 
-        $self->protocol, 'add', $key, $value, $exptime, $noreply, $cb );
-}
-
-sub decr {
-    my ($self, @args) = @_;
-    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
-    my ($key, $value, $initial) = @args;
-    $self->_push_queue( $self->protocol, 'decr', $key, $value, $initial, $cb );
-}
-
 sub delete {
     my ($self, @args) = @_;
     my $cb       = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my $noreply  = !defined $cb;
-    $self->_push_queue( $self->protocol, 'delete', @args, $noreply, $cb );
-}
-
-sub get {
-    my ($self, $key, $cb) = @_;
-    $self->_push_queue( $self->protocol, 'get', $key, $cb );
+    $self->_push_queue( $self->protocol->delete($self, @args, $noreply, $cb ) );
 }
 
 sub get_handle { shift->{_server_handles}->{ $_[0] } }
 
-sub get_multi {
-    my ($self, $keys, $cb) = @_;
-    $self->_push_queue( $self->protocol, 'get_multi', $keys, $cb );
-}
+{
+    my $installer = sub {
+        my ($name, $code) = @_;
+        {
+            no strict 'refs';
+            *{$name} = $code;
+        }
+    };
 
-sub incr {
-    my ($self, @args) = @_;
-    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
-    my ($key, $value, $initial) = @args;
-    $self->_push_queue( $self->protocol, 'incr', $key, $value, $initial, $cb );
-}
+    foreach my $method ( qw( get get_multi ) ) {
+        $installer->( $method, sub {
+            my ($self, $keys, $cb) = @_;
+            $self->_push_queue( $self->protocol->$method($self, $keys, $cb) );
+        } );
+    }
 
-sub replace {
-    my ($self, @args) = @_;
-    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
-    my ($key, $value, $exptime, $noreply) = @args;
-    $self->_push_queue( $self->protocol, 'replace', $key, $value, $exptime, $noreply, $cb );
-}
+    foreach my $method ( qw( decr incr ) ) {
+        $installer->($method, sub {
+            my ($self, @args) = @_;
+            my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
+            my ($key, $value, $initial) = @args;
+            $self->_push_queue( $self->protocol->$method( $self, $key, $value, $initial, $cb ) );
+        });
+    }
 
-sub set {
-    my ($self, @args) = @_;
-    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
-    my ($key, $value, $exptime, $noreply) = @args;
-    $self->_push_queue( $self->protocol, 'set', $key, $value, $exptime, $noreply, $cb);
-}
-
-sub append {
-    my ($self, @args) = @_;
-    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
-    $self->_push_queue( $self->protocol, 'append', @args, undef, undef, $cb);
-}
-
-sub prepend {
-    my ($self, @args) = @_;
-    my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
-    $self->_push_queue( $self->protocol, 'prepend', @args, undef, undef, $cb);
+    foreach my $method ( qw(add append prepend replace set) ) {
+        $installer->($method, sub {
+            my ($self, @args) = @_;
+            my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
+            my ($key, $value, $exptime, $noreply) = @args;
+            $self->_push_queue( $self->protocol->$method( $self, $key, $value, $exptime, $noreply, $cb ) );
+        });
+    }
 }
 
 sub stats {
     my ($self, @args) = @_;
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my ($name) = @args;
-    $self->_push_queue( $self->protocol, 'stats', $name, $cb );
+    $self->_push_queue( $self->protocol->stats($self, $name, $cb) );
 }
 
 sub version {
     my ($self, $cb) = @_;
-    $self->_push_queue( $self->protocol, 'version', $cb);
+    $self->_push_queue( $self->protocol->version($self, $cb) );
 }
 
 sub flush_all {
@@ -291,12 +275,12 @@ sub flush_all {
     my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
     my $noreply = !!$cb;
     my $delay = shift @args || 0;
-    $self->_push_queue( $self->protocol, 'flush_all', $delay, $noreply, $cb );
+    $self->_push_queue( $self->protocol->flush_all($self, $delay, $noreply, $cb) );
 }
 
 sub _push_queue {
-    my ($self, @args) = @_;
-    push @{$self->{queue}}, [ @args ];
+    my ($self, $cb) = @_;
+    push @{$self->{queue}}, $cb;
     $self->_drain_queue unless $self->{_is_draining};
 }
 
@@ -313,19 +297,18 @@ sub _drain_queue {
     if ($self->{_is_draining}) {
         return;
     }
+    my $cb = shift @{$self->{queue}};
+    return unless $cb;
 
-    if (my $next = shift @{$self->{queue}}) {
-        my ($proto, $method, @args) = @$next;
-        $self->{_is_draining}++;
-        my $guard = AnyEvent::Util::guard {
-            my $t; $t = AE::timer 0, 0, sub {
-                $self->{_is_draining}--;
-                undef $t;
-                $self->_drain_queue;
-            };
+    my $guard = AnyEvent::Util::guard {
+        my $t; $t = AE::timer 0, 0, sub {
+            $self->{_is_draining}--;
+            undef $t;
+            $self->_drain_queue;
         };
-        $proto->$method($guard, $self, @args);
-    }
+    };
+    $self->{_is_draining}++;
+    $cb->($guard);
 }
 
 sub disconnect {
@@ -514,7 +497,7 @@ The selector is an object responsible for selecting the appropriate
 Memcached server to store a particular key. This object MUST implement
 the following methods:
 
-    $object->add_server( $host_port, $anyevent_handle );
+    $object->set_server( @servernames );
     my $handle = $object->get_handle( $key );
 
 By default if this argument is not specified, a selector object will
@@ -568,6 +551,8 @@ C<%args> can also be a hashref.
 Get/Set auto_reconnect flag.
 
 =head2 add($key, $value[, $exptime, $noreply], $cb->($rc))
+
+=head2 add_server( $host_port )
 
 =head2 append($key, $value, $cb->($rc))
 

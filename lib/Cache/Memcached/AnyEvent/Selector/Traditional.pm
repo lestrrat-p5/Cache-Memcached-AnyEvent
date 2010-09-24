@@ -8,22 +8,18 @@ sub new {
     bless { @_, buckets => [], bucketcount => 0 }, $class;
 }
 
-sub add_server {
-    my ($self, $server, $h) = @_;
+sub set_servers {
+    my ($self, $list) = @_;
 
-    my %b2h = map { ( $_ => $self->hashkey($_) ) } @{ $self->{buckets} };
-    $b2h{ $server } = $self->hashkey($server);
-
-    my @newbuckets = sort { $b2h{ $a } <=> $b2h{ $b } } keys %b2h;
-    $self->{buckets} = \@newbuckets;
-    $self->{bucketcount} = scalar @newbuckets;
+    $self->{buckets} = [ @$list ];
+    $self->{bucketcount} = scalar @$list;
     ();
 }
 
 # for object definition's sake, it's good to make this a method
 # but for efficiency, this ->hashkey call is just stupid
 sub hashkey {
-    return (crc32($_[1]) >> 16) & 0x7ffff;
+    return (crc32($_[1]) >> 16) & 0x7fff;
 }
 
 sub get_handle {
@@ -82,9 +78,9 @@ the default selector.
 
 Constructor.
 
-=head2 $selector->add_server( $server, $handle )
+=head2 $selector->set_servers( @servernames )
 
-Called when a new server connection is made.
+Called when a new server set is given.
 
 =head2 $handle = $selector->get_handle( $key )
 

@@ -6,23 +6,20 @@ use Carp qw(croak);
 
 sub new {
     my $class = shift;
-    my $self = bless{ @_, ketama => Algorithm::ConsistentHash::Ketama->new }, $class;
-
-    my $servers = $self->{memcached}->{_active_servers};
-    foreach my $server (@$servers) {
-        $self->add_server($server);
-    }
+    my $self = bless{ @_ }, $class;
     return $self;
 }
 
-sub add_server {
-    my ($self, $server, $h) = @_;
+sub set_servers {
+    my ($self, $servers) = @_;
 
-    my $ketama = $self->{ketama};
-    my ($host_port, $weight) = (ref $server eq 'ARRAY') ?
-        @$server : ( $server, 1 )
-    ;
-    $ketama->add_bucket($host_port, $weight);
+    my $ketama = $self->{ketama} = Algorithm::ConsistentHash::Ketama->new;
+    foreach my $server (@$servers) {
+        my ($host_port, $weight) = (ref $server eq 'ARRAY') ?
+            @$server : ( $server, 1 )
+        ;
+        $ketama->add_bucket($host_port, $weight);
+    }
 }
 
 sub get_handle {
@@ -39,9 +36,14 @@ sub get_handle {
         }
     
         my $ketama = $self->{ketama};
-        my $handle = $handles->{ $ketama->hash( $key ) };
-        if ($handle) {
-            return $handle;
+        while ( scalar keys %$handles > 0 ) {
+            my $server = $ketama->hash($key);
+            my $handle = $handles->{ $server };
+            if ($handle) {
+                return $handle;
+            } else {
+                $ketama->remove_bucket($server);
+            }
         }
     }
     croak "Could not find a suitable handle for key $key";
@@ -72,9 +74,9 @@ Implements the ketama server selection mechanism,
 
 Constructor.
 
-=head2 $selector->add_server( $server, $handle )
+=head2 $selector->set_servers( @servernames )
 
-Called when a new server connection is made.
+Called when a new server set is given
 
 =head2 $handle = $selector->get_handle( $key )
 
