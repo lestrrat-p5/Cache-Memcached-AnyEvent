@@ -612,7 +612,7 @@ Contribution is welcome, but please make sure to follow this guideline:
 =item Please send changes AND tests.
 
 In case of changes that supposedly fixes incorrect behavior, you MUST provide
-me with a E<failing test case>. How should we know if you were hallucinating or just plain stupid if you can't reproduce it yourself?
+me with a B<failing test case>. How should we know if you were hallucinating or just plain stupid if you can't reproduce it yourself?
 
 =item Please send code, not an essay.
 
