@@ -72,7 +72,7 @@ sub _build_helper {
 }
 
 BEGIN {
-    foreach my $attr qw(auto_reconnect compress_threshold reconnect_delay servers namespace) {
+    foreach my $attr ( qw(auto_reconnect compress_threshold reconnect_delay servers namespace) ) {
         eval <<EOSUB;
             sub $attr {
                 my \$self = shift;
