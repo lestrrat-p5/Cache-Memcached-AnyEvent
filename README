@@ -89,7 +89,7 @@ METHODS
         Memcached server to store a particular key. This object MUST
         implement the following methods:
 
-            $object->add_server( $host_port, $anyevent_handle );
+            $object->set_server( @servernames );
             my $handle = $object->get_handle( $key );
 
         By default if this argument is not specified, a selector object will
@@ -138,6 +138,7 @@ METHODS
     Get/Set auto_reconnect flag.
 
   add($key, $value[, $exptime, $noreply], $cb->($rc))
+  add_server( $host_port )
   append($key, $value, $cb->($rc))
   connect()
     Explicitly connects to each server given. You DO NOT need to call this
@@ -163,6 +164,32 @@ METHODS
   version( $cb->(\%result) )
 TODO
     Binary stats is not yet implemented.
+
+CONTRIBUTING
+    Contribution is welcome, but please make sure to follow this guideline:
+
+    Please send changes AND tests.
+        In case of changes that supposedly fixes incorrect behavior, you
+        MUST provide me with a failing test case. How should we know if you
+        were hallucinating or just plain stupid if you can't reproduce it
+        yourself?
+
+    Please send code, not an essay.
+        Please don't waste time trying to explain in a 10K email for stuff
+        you can write in 10 lines of code.
+
+        I'm sorry, but I'm usually not interested in your opinion until I
+        see some code. Writing essays to describe a software problem is
+        stupid.
+
+    Please avoid emailing patches.
+        If at all possible, please use github pull requests instead of
+        emailing me patches. Patches are stupid.
+
+        Please refer to the META.yml file for the repository location.
+
+    So to summarize, contribution is welcome, but please don't be stupid. If
+    you can't follow the guideline, you will not be taken seriously.
 
 AUTHOR
     Daisuke Maki "<daisuke@endeworks.jp>"
