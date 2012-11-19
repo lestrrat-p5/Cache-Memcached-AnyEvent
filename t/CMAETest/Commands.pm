@@ -3,7 +3,7 @@ use strict;
 use AnyEvent::Impl::Perl;
 use t::Cache::Memcached::AnyEvent::Test;
 use Test::More;
-use Test::Exception;
+use Test::Fatal;
 
 my $key = 'CMAETest.' . int(rand(1000));
 my @keys = map { "commands-$_" } (1..10);
@@ -134,7 +134,7 @@ my @callbacks = (
 sub run {
     my ($pkg, $protocol, $selector) = @_;
 
-    lives_ok {
+    is exception {
         my $cv = AE::cv;
         my $memd = test_client(protocol_class => $protocol, selector_class => $selector);
 
@@ -163,7 +163,7 @@ sub run {
             }
         }
         $cv->recv;
-    } "Command tests ran fine";
+    }, undef, "Command tests ran fine";
     done_testing;
 }
 
