@@ -5,7 +5,7 @@ all_from 'lib/Cache/Memcached/AnyEvent.pm';
 requires 'AnyEvent';
 requires 'AnyEvent::Socket';
 requires 'AnyEvent::Handle';
-
+requires 'Task::Weaken';
 requires 'String::CRC32'; # sorry, required
 requires 'Storable';
 
