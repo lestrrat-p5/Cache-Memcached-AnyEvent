@@ -1,8 +1,13 @@
 use strict;
+
+# Cache::Memcached is not required, but since Travis CI runs author
+# tests anyway, we might as well add them so all tests are run
 my @devmods = qw(
     Module::Install::AuthorTests
     Module::Install::ReadmeFromPod
     Module::Install::Repository
+
+    Cache::Memcached
 );
 
 foreach my $module (@devmods) {
