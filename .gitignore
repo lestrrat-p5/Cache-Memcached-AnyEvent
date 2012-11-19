@@ -1,0 +1,10 @@
+TRAVIS.PL
+t/memcached.log
+META.yml
+MYMETA.json
+MYMETA.yml
+Makefile
+blib/
+extlib/
+inc/
+pm_to_blib
