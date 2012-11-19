@@ -10,8 +10,9 @@ sub run {
 
     Test::Requires->import( 'Cache::Memcached' );
     SKIP: {
-        skip "Can't test with Ketama", 26;
-
+        if ($selector eq 'Ketama') {
+            skip("Can't test with Ketama", 26);
+        }
         my $memd_anyevent = test_client(protocol_class => $protocol, selector_class => $selector);
         my $memd = Cache::Memcached->new({
             servers => [ test_servers() ],
