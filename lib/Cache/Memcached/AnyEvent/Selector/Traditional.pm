@@ -1,7 +1,7 @@
 package Cache::Memcached::AnyEvent::Selector::Traditional;
 use strict;
-use Carp qw(croak);
-use String::CRC32 qw(crc32);
+use Carp ();
+use String::CRC32 ();
 
 sub new {
     my $class = shift;
@@ -19,7 +19,7 @@ sub set_servers {
 # for object definition's sake, it's good to make this a method
 # but for efficiency, this ->hashkey call is just stupid
 sub hashkey {
-    return (crc32($_[1]) >> 16) & 0x7fff;
+    return (String::CRC32::crc32($_[1]) >> 16) & 0x7fff;
 }
 
 sub get_handle {
@@ -47,7 +47,7 @@ sub get_handle {
         }
     }
 
-    croak "Could not find a suitable handle for key $key";
+    Carp::croak("Could not find a suitable handle for key $key");
 }
 
 1;
