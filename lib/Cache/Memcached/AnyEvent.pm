@@ -12,7 +12,7 @@ use AnyEvent::Handle;
 use AnyEvent::Socket;
 use Carp;
 use Storable ();
-use Scalar::Util 'weaken';
+use Scalar::Util ();
 
 use constant +{
     HAVE_ZLIB => eval { require Compress::Zlib; 1 },
@@ -236,7 +236,7 @@ sub get_handle { shift->{_server_handles}->{ $_[0] } }
     foreach my $method ( qw( get get_multi ) ) {
         $installer->( $method, sub {
             my ($self, $keys, $cb) = @_;
-            weaken($self);
+            Scalar::Util::weaken($self);
             $self->_push_queue( $self->protocol->$method($self, $keys, $cb) );
         } );
     }
@@ -246,7 +246,7 @@ sub get_handle { shift->{_server_handles}->{ $_[0] } }
             my ($self, @args) = @_;
             my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
             my ($key, $value, $initial) = @args;
-            weaken($self);
+            Scalar::Util::weaken($self);
             $self->_push_queue( $self->protocol->$method( $self, $key, $value, $initial, $cb ) );
         });
     }
@@ -256,7 +256,7 @@ sub get_handle { shift->{_server_handles}->{ $_[0] } }
             my ($self, @args) = @_;
             my $cb = pop @args if (ref $args[-1] eq 'CODE' or ref $args[-1] eq 'AnyEvent::CondVar');
             my ($key, $value, $exptime, $noreply) = @args;
-            weaken($self);
+            Scalar::Util::weaken($self);
             $self->_push_queue( $self->protocol->$method( $self, $key, $value, $exptime, $noreply, $cb ) );
         });
     }
