@@ -1,6 +1,13 @@
 Changes
 =======
 
+0.00021 - 19 Nov 2012
+    * Apply PR #3 to fix callbacks from leaking memory (Sawyer X)
+    * Apply PR #2 to fix 'deprecated use of qw() warnings (Sawyer X)
+    * Apply PR #1 to fix POD erros (Schuk)
+    * Add Travis CI hooks (only on repo)
+    * Add .gitignore (only on repo)
+
 0.00020 - 24 Sep 2010
     * Fix incompatible hashing.
     * Micro-optimizations.
