@@ -10,12 +10,12 @@ foreach my $module (@devmods) {
         die "Failed to install $module!";
 }
 
-system($^X, "cpanm", "--installdeps", ".") == 0 ||
+system("cpanm", "--installdeps", ".") == 0 ||
     die "Failed to run cpanm --installdeps";
 
-system($^X, "perl", "Makefile.PL") == 0 ||
+system($^X, "Makefile.PL") == 0 ||
     die "Failed to run perl Makefile.PL";
 
-system($^X, "make", "test") == 0 ||
+system("make", "test") == 0 ||
     die "Failed to run make test";
 
