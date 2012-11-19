@@ -3,6 +3,8 @@ t/memcached.log
 META.yml
 MYMETA.json
 MYMETA.yml
+MANIFEST
+MANIFEST.bak
 Makefile
 blib/
 extlib/
