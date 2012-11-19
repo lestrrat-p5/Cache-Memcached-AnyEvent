@@ -359,7 +359,7 @@ sub _decode_key_value {
     }
 
     if (defined $$flags_ref && defined $$data_ref) {
-        if ($$flags_ref & F_COMPRESS() && HAVE_ZLIB()) {
+        if (HAVE_ZLIB && $$flags_ref & F_COMPRESS()) {
             $$data_ref = Compress::Zlib::memGunzip($$data_ref);
         }
         if ($$flags_ref & F_STORABLE()) {
@@ -380,21 +380,22 @@ sub _prepare_value {
 
     $$len_ref = bytes::length($$value_ref);
     my $threshold = $self->compress_threshold;
-    my $compressable = 
-        ($cmd ne 'append' && $cmd ne 'prepend') &&
-        $threshold && 
-        HAVE_ZLIB() &&
-        $$len_ref >= $threshold
-    ;
+    if (HAVE_ZLIB) {
+        my $compressable =
+            ($cmd ne 'append' && $cmd ne 'prepend') &&
+            $threshold && 
+            $$len_ref >= $threshold
+        ;
 
-    if ($compressable) {
-        my $c_val = Compress::Zlib::memGzip($$value_ref);
-        my $c_len = bytes::length($c_val);
+        if ($compressable) {
+            my $c_val = Compress::Zlib::memGzip($$value_ref);
+            my $c_len = bytes::length($c_val);
 
-        if ($c_len < $$len_ref * ( 1 - COMPRESS_SAVINGS() ) ) {
-            $$value_ref = $c_val;
-            $$len_ref   = $c_len;
-            $$flags_ref |= F_COMPRESS();
+            if ($c_len < $$len_ref * ( 1 - COMPRESS_SAVINGS() ) ) {
+                $$value_ref = $c_val;
+                $$len_ref   = $c_len;
+                $$flags_ref |= F_COMPRESS();
+            }
         }
     }
     $$exptime_ref = int($$exptime_ref || 0);
