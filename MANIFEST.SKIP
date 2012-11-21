@@ -3,4 +3,5 @@
 ^extlib
 ^Cache-Memcached-AnyEvent-
 \.bak$
+t/*.log
 TRAVIS.PL
