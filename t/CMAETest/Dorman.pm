@@ -1,6 +1,6 @@
 package t::CMAETest::Dorman;
 use strict;
-use t::Cache::Memcached::AnyEvent::Test;
+use t::Util;
 
 sub run {
     my ($pkg, $protocol, $selector) = @_;

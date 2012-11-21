@@ -1,12 +1,12 @@
 package t::CMAETest::CV;
 use strict;
-use t::Cache::Memcached::AnyEvent::Test;
+use t::Util;
 
 sub run {
     my ($pkg, $protocol, $selector) = @_;
     my $memd = test_client(protocol_class => $protocol, selector_class => $selector);
 
-    my $key = 'CMAETest.' . int(rand(1000));
+    my $key = random_key();
     my @keys = map { "commands-$_" } (1..4);
 
     my $cv_called = 0;

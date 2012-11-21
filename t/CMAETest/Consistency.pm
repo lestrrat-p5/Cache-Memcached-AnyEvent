@@ -3,7 +3,7 @@ use strict;
 use AnyEvent;
 use Test::More;
 use Test::Requires;
-use t::Cache::Memcached::AnyEvent::Test;
+use t::Util;
 
 sub run {
     my ($self, $protocol, $selector) = @_;
@@ -19,7 +19,8 @@ sub run {
             namespace => $memd_anyevent->{namespace},
         });
 
-        my @keys = map { "consistency_$_" } ('a'..'z');
+        my $key  = random_key();
+        my @keys = map { "$key.$_" } ('a'..'z');
         $memd->flush_all;
         foreach my $key (@keys) {
             $memd->set($key, $key);

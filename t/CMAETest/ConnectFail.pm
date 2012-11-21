@@ -1,7 +1,7 @@
 package t::CMAETest::ConnectFail;
 use strict;
 use Test::More;
-use t::Cache::Memcached::AnyEvent::Test;
+use t::Util;
 
 sub run {
     my ($pkg, $protocol, $selector) = @_;
@@ -10,7 +10,7 @@ sub run {
     my $bogus_server = 'you.should.not.be.able.to.connect.to.me:11211';
     $memd->add_server( $bogus_server );
 
-    my $key_base = "BigF*ckingTruckHitMe";
+    my $key_base = random_key();
     my $value = join('.', time(), $$, {}, rand());
 
     my $cv = AE::cv;

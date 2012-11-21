@@ -1,16 +1,25 @@
-package t::Cache::Memcached::AnyEvent::Test;
+package
+    t::Util;
 use strict;
 use Cache::Memcached::AnyEvent;
 use IO::Socket::INET;
 use Test::More;
 use base qw(Exporter);
 
-our @EXPORT = qw(test_client test_servers);
+our @EXPORT = qw(
+    test_client
+    test_servers
+    random_key
+);
 
 sub import {
     my $class = shift;
     Test::More->export_to_level(1, @_);
     $class->Exporter::export_to_level(1, @_);
+}
+
+sub random_key {
+    return join ".", "cm-ae-test", {}, rand(), $$;
 }
 
 sub test_servers {
@@ -46,5 +55,7 @@ sub test_client {
     );
 }
     
+
+1;
 
 1;

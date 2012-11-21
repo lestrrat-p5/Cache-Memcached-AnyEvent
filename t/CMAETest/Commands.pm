@@ -1,11 +1,11 @@
 package t::CMAETest::Commands;
 use strict;
 use AnyEvent::Impl::Perl;
-use t::Cache::Memcached::AnyEvent::Test;
+use t::Util;
 use Test::More;
 use Test::Fatal;
 
-my $key = 'CMAETest.' . int(rand(1000));
+my $key = random_key();
 my @keys = map { "commands-$_" } (1..10);
 my @callbacks = (
     sub { my ($memd, $cv) = @_; $memd->flush_all(sub { is($_[0], 1, 'Flush all records'); $cv->end }); },
