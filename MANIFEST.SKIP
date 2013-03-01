@@ -3,5 +3,9 @@
 ^extlib
 ^Cache-Memcached-AnyEvent-
 \.bak$
+MANIFEST\.SKIP
+pm_to_blib
 t/*.log
 TRAVIS.PL
+MYMETA\..*
+^nytprof
