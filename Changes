@@ -3,6 +3,10 @@ Changes
 
 {{$NEXT}}
 
+0.00022 2013-10-04T03:39:14Z
+    * Add new serializers (JSON, MessagePack)
+    * Update layout by switching to Minilla
+
 0.00021 - 19 Nov 2012
     * Apply PR #3 to fix callbacks from leaking memory (Sawyer X)
     * Apply PR #2 to fix 'deprecated use of qw() warnings (Sawyer X)
