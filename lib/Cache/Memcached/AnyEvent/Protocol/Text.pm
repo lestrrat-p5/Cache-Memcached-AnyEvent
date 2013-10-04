@@ -28,8 +28,18 @@ sub _NOOP() {}
                 } else {
                     $handle->push_read(line => sub {
                         undef $guard;
-                        $_[1] =~ /^(NOT_FOUND|\w+)\r\n/;
-                        $cb->($1 eq 'NOT_FOUND' ? undef : $1) if $cb;
+                        if (! $cb) {
+                            return;
+                        }
+                        my $rv;
+                        if ($_[1] =~ /^(NOT_FOUND|\d+)(?:\r\n)?/) {
+                            $rv = $1;
+                        }
+                        $cb->(
+                            (! defined $rv || ! length $rv || $rv eq 'NOT_FOUND') ?
+                                undef :
+                                $rv
+                        )
                     });
                 }
             }
@@ -65,12 +75,12 @@ sub delete {
 }
 
 sub get {
-    my ($self, $memcached, $key, $cb) = @_;
+    my ($self, $memd, $key, $cb) = @_;
 
     return sub {
         my $guard = shift;
-        my $fq_key = $memcached->_prepare_key( $key );
-        my $handle = $memcached->_get_handle_for( $key );
+        my $fq_key = $memd->_prepare_key( $key );
+        my $handle = $memd->_get_handle_for( $key );
 
         $handle->push_write( "get $fq_key\r\n" );
         $handle->push_read( line => sub {
@@ -79,9 +89,10 @@ sub get {
                 my ($rkey, $rflags, $rsize, $rcas) = @bits[1..4];
                 $_[0]->push_read(chunk => $rsize, sub {
                     my $value = $_[1];
-                    $memcached->_decode_key_value(\$rkey, \$rflags, \$value);
+                    $memd->normalize_key(\$rkey);
+                    $memd->deserialize(\$rflags, \$value);
                     $handle->push_read(regex => qr{END\r\n}, cb => sub {
-                        $cb->( $value );
+                        $cb->($value);
                         undef $guard;
                     } );
                 });
@@ -137,9 +148,12 @@ sub get_multi {
                 my ($rkey, $rflags, $rsize, $rcas) = @bits[1..4];
                 $handle->push_read(chunk => $rsize, sub {
                     my $value = $_[1];
-                    $memcached->_decode_key_value(\$rkey, \$rflags, \$value);
-                    $rv{ $rkey } = $value; # XXX whatabout CAS?
-                    $handle->push_read(line => \&_NOOP );
+
+                    $memcached->normalize_key(\$rkey);
+                    $memcached->deserialize(\$rflags, \$value);
+
+                    $rv{$rkey} = $value; # XXX whatabout CAS?
+                    $handle->push_read(line => \&_NOOP);
                     $handle->push_read(line => $code);
                 } );
             } else {
@@ -153,18 +167,32 @@ sub get_multi {
 }
 
 {
-    my $generator = sub {
-        my $cmd = shift;
+    my $setter_code_with_compression = <<'EOCODE';
         sub {
-            my ($self, $memcached, $key, $value, $expires, $noreply, $cb) = @_;
+            my ($self, $memd, $key, $value, $expires, $noreply, $cb) = @_;
             return sub {
                 my $guard = shift;
-                my $fq_key = $memcached->_prepare_key( $key );
-                my $handle = $memcached->_get_handle_for( $key );
-                my ($len, $flags);
+                my $fq_key = $memd->_prepare_key( $key );
+                my $handle = $memd->_get_handle_for( $key );
+                my $length = 0;
+                my $flags  = 0;
 
-                $memcached->_prepare_value( $cmd, \$value, \$len, \$expires, \$flags );
-                $handle->push_write("$cmd $fq_key $flags $expires $len\r\n$value\r\n");
+                if ($memd->should_serialize($value)) {
+                    $memd->serialize(\$value, \$length, \$flags);
+                } else {
+                    $length = bytes::length($value);
+                }
+
+                # START CHECK_COMPRESSION
+                # Don't even check for should_compress if we're not
+                # allowed to do so
+                if ($memd->should_compress($length)) {
+                    $memd->compress(\$value, \$length, \$flags);
+                }
+                # END CHECK_COMPRESSION
+
+                my $expires = int($expires || 0);
+                $handle->push_write("$cmd $fq_key $flags $expires $length\r\n$value\r\n");
                 if ($noreply) {
                     undef $guard;
                 } else {
@@ -175,12 +203,40 @@ sub get_multi {
                 }
             };
         };
+EOCODE
+    my $setter_code_without_compression = '';
+    my $in_check_compression = 0;
+    foreach my $line (split /\n/, $setter_code_with_compression) {
+        if ($line =~ /END CHECK_COMPRESSION/) {
+            $in_check_compression = 0;
+            next;
+        } elsif ($line =~ /START CHECK_COMPRESSION/) {
+            $in_check_compression = 1;
+            next;
+        } elsif ($in_check_compression) {
+            next;
+        }
+        $setter_code_without_compression .= "$line\n";
+    }
+
+    my $generator = sub {
+        my $cmd = shift;
+        my $code;
+        if ($cmd ne 'append' && $cmd ne 'prepend') {
+            $code = eval $setter_code_with_compression;
+        } else {
+            $code = eval $setter_code_without_compression;
+        }
+        if ($@) {
+            die "Error: $@";
+        }
+        return $code;
     };
 
-    *add = $generator->("add");
+    *add     = $generator->("add");
     *replace = $generator->("replace");
-    *set = $generator->("set");
-    *append = $generator->("append");
+    *set     = $generator->("set");
+    *append  = $generator->("append");
     *prepend = $generator->("prepend");
 }
 

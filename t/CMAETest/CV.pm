@@ -2,6 +2,8 @@ package t::CMAETest::CV;
 use strict;
 use t::Util;
 
+sub should_run { 1 }
+
 sub run {
     my ($pkg, $protocol, $selector) = @_;
     my $memd = test_client(protocol_class => $protocol, selector_class => $selector);
@@ -37,6 +39,7 @@ sub run {
     $cv->recv;
     ok $cv_called, "cv called";
 
+    $memd->disconnect();
     done_testing();
 }
 

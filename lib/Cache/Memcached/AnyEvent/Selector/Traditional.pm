@@ -5,7 +5,10 @@ use String::CRC32 ();
 
 sub new {
     my $class = shift;
-    bless { @_, buckets => [], bucketcount => 0 }, $class;
+    my $self = bless { @_, buckets => [], bucketcount => 0 }, $class;
+
+    $self->set_servers($self->{memcached}->servers);
+    return $self;
 }
 
 sub set_servers {

@@ -1,12 +1,12 @@
 package Cache::Memcached::AnyEvent::Selector::Ketama;
 use strict;
-use base qw(Cache::Memcached::AnyEvent::Selector::Traditional);
 use Algorithm::ConsistentHash::Ketama;
-use Carp qw(croak);
+use Carp ();
 
 sub new {
     my $class = shift;
     my $self = bless{ @_ }, $class;
+    $self->set_servers($self->{memcached}->servers);
     return $self;
 }
 
@@ -46,7 +46,7 @@ sub get_handle {
             }
         }
     }
-    croak "Could not find a suitable handle for key $key";
+    Carp::croak("Could not find a suitable handle for key $key");
 }
 
 1;

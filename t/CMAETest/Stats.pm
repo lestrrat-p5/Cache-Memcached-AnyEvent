@@ -2,6 +2,7 @@ package t::CMAETest::Stats;
 use strict;
 use t::Util;
 
+sub should_run { 1 }
 sub run {
     my ( $pkg, $protocol, $selector) = @_;
 

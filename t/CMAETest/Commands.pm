@@ -131,12 +131,13 @@ my @callbacks = (
     sub { my ($memd, $cv) = @_; $memd->get($key, sub { ok(!$_[0], "Get on existing value fails after flush_all"); $cv->end }) },
 );
 
+sub should_run { 1 }
 sub run {
-    my ($pkg, $protocol, $selector) = @_;
+    my ($pkg, $protocol, $selector, $serializer) = @_;
 
     is exception {
         my $cv = AE::cv;
-        my $memd = test_client(protocol_class => $protocol, selector_class => $selector);
+        my $memd = test_client(protocol_class => $protocol, selector_class => $selector, serializer_class => $serializer);
 
         isa_ok $memd->selector, "Cache::Memcached::AnyEvent::Selector::$selector";
         isa_ok $memd->protocol, "Cache::Memcached::AnyEvent::Protocol::$protocol";
@@ -163,6 +164,8 @@ sub run {
             }
         }
         $cv->recv;
+
+        $memd->disconnect;
     }, undef, "Command tests ran fine";
     done_testing;
 }

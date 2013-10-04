@@ -11,12 +11,14 @@ use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 use Carp;
+use Module::Runtime ();
 use Storable ();
 use Scalar::Util ();
 
 use constant +{
     HAVE_ZLIB => eval { require Compress::Zlib; 1 },
-    F_STORABLE => 1,
+    # We may use stuff other than Storable, so the flag name is more generic
+    F_SERIALIZE => 1, 
     F_COMPRESS => 2,
     COMPRESS_SAVINGS => 0.20,
 };
@@ -27,8 +29,10 @@ sub new {
     my $class = shift;
     my %args  = @_ == 1 ? %{$_[0]} : @_;
 
-    my $protocol_class = delete $args{protocol_class} || 'Text';
-    my $selector_class = delete $args{selector_class} || 'Traditional';
+    $args{protocol_class}   ||= 'Text';
+    $args{selector_class}   ||= 'Traditional';
+    $args{serializer_class} ||= 'Storable';
+
     my $self  = bless {
         auto_reconnect => 5,
         compress_threshold => 10_000,
@@ -42,33 +46,36 @@ sub new {
         _is_connected => undef,
         _is_connecting => undef,
         _queue => [],
-        _server_handles => undef,
+        _server_handles => {},
     }, $class;
-
-    $self->{selector} ||= $self->_build_selector( $selector_class );
-    $self->{protocol} ||= $self->_build_protocol( $protocol_class );
-
-    $self->{selector}->set_servers( $self->{servers} );
 
     return $self;
 }
 
-sub _build_selector {
-    $_[0]->_build_helper( 'Cache::Memcached::AnyEvent::Selector', $_[1] );
+# lazy build
+sub selector {
+    return $_[0]->{selector} ||=
+        $_[0]->_build_helper('Selector', $_[0]->{selector_class});
 }
-sub _build_protocol {
-    $_[0]->_build_helper( 'Cache::Memcached::AnyEvent::Protocol', $_[1] );
+
+sub protocol {
+    $_[0]->{protocol} ||=
+        $_[0]->_build_helper('Protocol', $_[0]->{protocol_class});
 }
+
+sub serializer {
+    $_[0]->{serializer} ||=
+        $_[0]->_build_helper('Serializer', $_[0]->{serializer_class});
+}
+
 sub _build_helper {
     my ($self, $prefix, $klass) = @_;
     if ($klass !~ s/^\+//) {
-        $klass = "${prefix}::$klass";
+        $klass = "Cache::Memcached::AnyEvent::${prefix}::$klass";
     }
 
-    $klass =~ s/[^\w:_]//g; # cleanse
-
-    eval "require $klass";
-    Carp::confess $@ if $@;
+    Module::Runtime::check_module_name($klass);
+    Module::Runtime::require_module($klass);
     return $klass->new(memcached => $self);
 }
 
@@ -86,28 +93,6 @@ BEGIN {
 EOSUB
         Carp::confess if $@;
     }
-}
-
-sub protocol {
-    my $self = shift;
-    my $ret  = $self->{protocol};
-    if (@_) {
-        my $obj = shift;
-        my $class = ref $obj;
-        $self->{protocol} = $obj;
-    }
-    return $ret;
-}
-
-sub selector {
-    my $self = shift;
-    my $ret  = $self->{selector};
-    if (@_) {
-        my $obj = shift;
-        my $class = ref $obj;
-        $self->{selector} = $obj;
-    }
-    return $ret;
 }
 
 sub _connect_one {
@@ -131,7 +116,7 @@ sub _on_tcp_connect {
     delete $self->{_is_connecting}->{$server}; # thanks, buddy
     if (! $fh) {
         # connect failed
-        warn "failed to connect to $server";
+        warn("failed to connect to $server");
 
         if ($self->{auto_reconnect} > $self->{_connect_attempts}->{ $server }++) {
             # XXX this watcher holds a reference to $self, which means
@@ -237,6 +222,7 @@ sub get_handle { shift->{_server_handles}->{ $_[0] } }
         $installer->( $method, sub {
             my ($self, $keys, $cb) = @_;
             Scalar::Util::weaken($self);
+
             $self->_push_queue( $self->protocol->$method($self, $keys, $cb) );
         } );
     }
@@ -332,6 +318,8 @@ sub disconnect {
     delete $self->{_is_connecting};
     delete $self->{_is_connected};
     delete $self->{_is_draining};
+
+    $self->{_server_handles} = {};
 }
 
 sub DESTROY {
@@ -340,7 +328,7 @@ sub DESTROY {
 }
     
 sub _get_handle_for {
-    $_[0]->{selector}->get_handle($_[1]);
+    $_[0]->selector->get_handle($_[1]);
 }
 
 sub _prepare_key {
@@ -351,54 +339,61 @@ sub _prepare_key {
     return $key;
 }
 
-sub _decode_key_value {
-    my ($self, $key_ref, $flags_ref, $data_ref) = @_;
+sub normalize_key {
+    my ($self, $key_ref) = @_;
 
     if (my $ns = $self->{namespace}) {
         $$key_ref =~ s/^$ns//;
     }
+}
 
+sub deserialize {
+    my ($self, $flags_ref, $data_ref) = @_;
     if (defined $$flags_ref && defined $$data_ref) {
         if (HAVE_ZLIB && $$flags_ref & F_COMPRESS()) {
             $$data_ref = Compress::Zlib::memGunzip($$data_ref);
         }
-        if ($$flags_ref & F_STORABLE()) {
-            $$data_ref = Storable::thaw($$data_ref);
+
+        if ($$flags_ref & F_SERIALIZE()) {
+            $self->serializer->deserialize($data_ref);
         }
     }
     return ();
 }
 
-sub _prepare_value {
-    my ($self, $cmd, $value_ref, $len_ref, $exptime_ref, $flags_ref) = @_;
+sub should_serialize {
+    return ref $_[1];
+}
 
-    $$flags_ref = 0;
-    if (ref $$value_ref) {
-        $$value_ref = Storable::nfreeze($$value_ref);
-        $$flags_ref |= F_STORABLE();
-    }
+sub should_compress {
+    my ($self, $len) = @_;
 
-    $$len_ref = bytes::length($$value_ref);
-    my $threshold = $self->compress_threshold;
     if (HAVE_ZLIB) {
-        my $compressable =
-            ($cmd ne 'append' && $cmd ne 'prepend') &&
-            $threshold && 
-            $$len_ref >= $threshold
-        ;
-
-        if ($compressable) {
-            my $c_val = Compress::Zlib::memGzip($$value_ref);
-            my $c_len = bytes::length($c_val);
-
-            if ($c_len < $$len_ref * ( 1 - COMPRESS_SAVINGS() ) ) {
-                $$value_ref = $c_val;
-                $$len_ref   = $c_len;
-                $$flags_ref |= F_COMPRESS();
-            }
-        }
+        my $threshold = $self->compress_threshold;
+        my $compressable = $threshold && $len >= $threshold ;
+        return $compressable;
     }
-    $$exptime_ref = int($$exptime_ref || 0);
+
+    return ();
+}
+
+sub serialize {
+# XXX Micro optimization for this:
+#    my ($self, $value_ref, $len_ref, $flags_ref) = @_;
+#    $self->serializer->serialize($value_ref, $len_ref, $flags_ref);
+    $_[0]->serializer->serialize($_[1], $_[2], $_[3]);
+}
+
+sub compress {
+    my ($self, $value_ref, $len_ref, $flags_ref) = @_;
+    my $c_val = Compress::Zlib::memGzip($$value_ref);
+    my $c_len = bytes::length($c_val);
+
+    if ($c_len < $$len_ref * ( 1 - COMPRESS_SAVINGS() ) ) {
+        $$value_ref = $c_val;
+        $$len_ref   = $c_len;
+        $$flags_ref |= F_COMPRESS();
+    }
 }
 
 1;

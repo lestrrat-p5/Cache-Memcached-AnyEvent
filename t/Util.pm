@@ -1,3 +1,4 @@
+# use Devel::NYTProf;
 package
     t::Util;
 use strict;

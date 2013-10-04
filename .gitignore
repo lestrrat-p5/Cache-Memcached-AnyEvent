@@ -10,3 +10,13 @@ blib/
 extlib/
 inc/
 pm_to_blib
+/Cache-Memcached-AnyEvent-*
+/.build
+/_build_params
+/Build
+!Build/
+!META.json
+!LICENSE
+nytprof/
+nytprof.out
+out

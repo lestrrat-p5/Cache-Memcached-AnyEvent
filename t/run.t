@@ -1,7 +1,8 @@
 use strict;
 use Test::More;
 use Test::Memcached;
-use Test::Requires;
+use Module::Runtime;
+use constant HAVE_KETAMA => eval { require Algorithm::ConsistentHash::Ketama };
 
 my @memd;
 if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
@@ -33,18 +34,38 @@ if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
     );
 }
 
-foreach my $protocol ( qw(Text Binary) ) {
-    foreach my $selector ( qw(Traditional Ketama) ) {
-        foreach my $pkg ( qw( t::CMAETest::Commands t::CMAETest::ConnectFail t::CMAETest::CV t::CMAETest::Dorman t::CMAETest::Stats t::CMAETest::Consistency) ) {
-            note "running $pkg test [$protocol/$selector]";
-            eval "require $pkg";
-            ok !$@, "Loaded $pkg for testing";
-            subtest "$pkg [$protocol/$selector]" => sub {
-                if ( $selector eq 'Ketama' ) {
-                    Test::Requires->import( 'Algorithm::ConsistentHash::Ketama' );
-                }
-                $pkg->run( $protocol, $selector );
-            };
+my @protocols   = qw(Text Binary);
+my @selectors   = qw(Traditional Ketama);
+my @serializers = qw(Storable JSON);
+my @tests     = qw(
+    t::CMAETest::Commands
+    t::CMAETest::ConnectFail
+    t::CMAETest::CV
+    t::CMAETest::Dorman
+    t::CMAETest::Stats
+    t::CMAETest::Consistency
+);
+
+
+
+foreach my $protocol (@protocols) {
+    foreach my $selector (@selectors) {
+        foreach my $serializer (@serializers) {
+            foreach my $pkg (@tests) {
+                note "running $pkg test [$protocol/$selector/$serializer]";
+                Module::Runtime::require_module($pkg);
+                subtest "$pkg [$protocol/$selector]" => sub {
+                    SKIP: {
+                        if ( ! HAVE_KETAMA && $selector eq 'Ketama') {
+                            skip("Test $pkg [$protocol/$selector/$serializer] skipped (no ketama available)", 1);
+                        }
+                        if ( ! $pkg->should_run) {
+                            skip("Test $pkg [$protocol/$selector/$serializer] skipped", 1);
+                        }
+                        $pkg->run( $protocol, $selector, $serializer );
+                    };
+                };
+            }
         }
     }
 }

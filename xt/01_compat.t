@@ -1,9 +1,14 @@
-
 use strict;
 use Test::Memcached;
 use Test::More;
-use Test::Requires 'Cache::Memcached';
 use AnyEvent;
+use constant HAVE_CACHE_MEMCACHED => eval { require Cache::Memcached };
+
+BEGIN {
+    if (! HAVE_CACHE_MEMCACHED) {
+        plan(skip_all => "Cache::Memcached not available");
+    }
+}
 
 use_ok "Cache::Memcached::AnyEvent";
 

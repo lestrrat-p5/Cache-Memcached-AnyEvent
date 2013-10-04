@@ -287,11 +287,24 @@ sub _status_str {
                 my $guard = shift;
                 my $fq_key = $memcached->_prepare_key( $key );
                 my $handle = $memcached->_get_handle_for( $key );
-                my ($len, $flags);
+                my $length = 0;
+                my $flags  = 0;
 
-                $memcached->_prepare_value( $cmd, \$value, \$len, \$expires, \$flags);
+                if ($memcached->should_serialize($value)) {
+                    $memcached->serialize(\$value, \$length, \$flags);
+                } else {
+                    $length = bytes::length($value);
+                }
 
-                my $extras = pack('N2', $flags, $expires);
+                # START CHECK_COMPRESSION
+                # Don't even check for should_compress if we're not
+                # allowed to do so
+                if ($memcached->should_compress($length)) {
+                    $memcached->compress(\$value, \$length, \$flags);
+                }
+                # END CHECK_COMPRESSION
+
+                my $extras = pack('N2', $flags, $expires || 0);
 
                 $handle->push_write( memcached_bin => $opcode, $fq_key, $extras, $value );
                 $handle->push_read( memcached_bin => sub {
@@ -338,7 +351,7 @@ sub get {
             my ($flags, $exptime) = unpack('N2', $msg->{extra});
             if (exists $msg->{key} && exists $msg->{value}) {
                 my $value = $msg->{value};
-                $memcached->_decode_key_value(\$key, \$flags, \$value );
+                $memcached->deserialize(\$flags, \$value);
                 $cb->($value);
             } else {
                 $cb->();
@@ -390,7 +403,8 @@ sub get_multi {
                     my ($flags, $exptime) = unpack('N2', $msg->{extra});
                     if (exists $msg->{key} && exists $msg->{value}) {
                         my $value = $msg->{value};
-                        $memcached->_decode_key_value(\$key, \$flags, \$value );
+                        $memcached->normalize_key(\$key);
+                        $memcached->deserialize(\$flags, \$value);
                         $rv{ $key } = $value;
                     }
                     $cv->end;

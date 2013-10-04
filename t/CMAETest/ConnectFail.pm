@@ -3,6 +3,7 @@ use strict;
 use Test::More;
 use t::Util;
 
+sub should_run { 1 }
 sub run {
     my ($pkg, $protocol, $selector) = @_;
     my $memd = test_client(protocol_class => $protocol, selector_class => $selector);
@@ -37,6 +38,8 @@ sub run {
     $cv->recv;
 
     ok $warn_called, "warn properly called";
+
+    $memd->disconnect;
     done_testing;
 }
 

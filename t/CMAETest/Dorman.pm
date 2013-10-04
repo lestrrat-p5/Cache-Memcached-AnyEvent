@@ -2,6 +2,7 @@ package t::CMAETest::Dorman;
 use strict;
 use t::Util;
 
+sub should_run { 1 }
 sub run {
     my ($pkg, $protocol, $selector) = @_;
 
@@ -20,6 +21,7 @@ sub run {
             });
         } );
         $cv->recv;
+        $mc->disconnect;
     }
 
     { # run once with regular server list
@@ -35,6 +37,7 @@ sub run {
             $cv->end;
         });
         $cv->recv;
+        $mc->disconnect;
     }
 
     { # run another time, but this time shuffle round the server
@@ -54,6 +57,7 @@ sub run {
             $cv->end;
         });
         $cv->recv;
+        $mc->disconnect;
     }
     done_testing;
 }
