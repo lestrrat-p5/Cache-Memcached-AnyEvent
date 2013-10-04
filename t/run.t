@@ -2,7 +2,12 @@ use strict;
 use Test::More;
 use Test::Memcached;
 use Module::Runtime;
-use constant HAVE_KETAMA => eval { require Algorithm::ConsistentHash::Ketama };
+use constant HAVE_KETAMA => eval { require Algorithm::ConsistentHash::Ketama } || 0;
+use constant HAVE_JSON => 
+    eval { require JSON } ||
+    eval { require JSON::XS } ||
+    eval { require JSON::PP } || 0;
+use constant HAVE_MESSAGE_PACK => eval { require Data::MessagePack } || 0;
 
 my @memd;
 if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
@@ -36,7 +41,7 @@ if ( ! $ENV{PERL_ANYEVENT_MEMCACHED_SERVERS}) {
 
 my @protocols   = qw(Text Binary);
 my @selectors   = qw(Traditional Ketama);
-my @serializers = qw(Storable JSON);
+my @serializers = qw(Storable JSON MessagePack);
 my @tests     = qw(
     t::CMAETest::Commands
     t::CMAETest::ConnectFail
@@ -46,7 +51,15 @@ my @tests     = qw(
     t::CMAETest::Consistency
 );
 
-
+my %HAVE_SELECTORS = (
+    Traditional => 1,
+    Ketama      => HAVE_KETAMA,
+);
+my %HAVE_SERIALIZERS = (
+    Storable    => 1,
+    JSON        => HAVE_JSON,
+    MessagePack => HAVE_MESSAGE_PACK,
+);
 
 foreach my $protocol (@protocols) {
     foreach my $selector (@selectors) {
@@ -56,9 +69,13 @@ foreach my $protocol (@protocols) {
                 Module::Runtime::require_module($pkg);
                 subtest "$pkg [$protocol/$selector]" => sub {
                     SKIP: {
-                        if ( ! HAVE_KETAMA && $selector eq 'Ketama') {
-                            skip("Test $pkg [$protocol/$selector/$serializer] skipped (no ketama available)", 1);
+                        if (! $HAVE_SELECTORS{ $selector }) {
+                            skip("Test $pkg [$protocol/$selector/$serializer] skipped (selector $selector not available)", 1);
                         }
+                        if (! $HAVE_SERIALIZERS{ $serializer }) {
+                            skip("Test $pkg [$protocol/$selector/$serializer] skipped (serializer $serializer not available)", 1);
+                        }
+                        
                         if ( ! $pkg->should_run) {
                             skip("Test $pkg [$protocol/$selector/$serializer] skipped", 1);
                         }
