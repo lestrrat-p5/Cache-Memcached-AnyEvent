@@ -45,6 +45,7 @@ warn Dumper($memd_anyevent);
 
         $cv->recv;
         $memd_anyevent->disconnect;
+        $memd->disconnect_all;
     }
     done_testing;
 }
