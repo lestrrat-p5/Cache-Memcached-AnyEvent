@@ -116,7 +116,7 @@ sub _on_tcp_connect {
     delete $self->{_is_connecting}->{$server}; # thanks, buddy
     if (! $fh) {
         # connect failed
-        warn("failed to connect to $server");
+        warn("failed to connect to $server [$!]");
 
         if ($self->{auto_reconnect} > $self->{_connect_attempts}->{ $server }++) {
             # XXX this watcher holds a reference to $self, which means
