@@ -20,8 +20,6 @@ warn "Skip because of Ketama";
             skip("Can't test with Ketama", 26);
         }
         my $memd_anyevent = test_client(protocol_class => $protocol, selector_class => $selector);
-use Data::Dumper;
-warn Dumper($memd_anyevent);
         my $memd = Cache::Memcached->new({
             servers => [ test_servers() ],
             namespace => $memd_anyevent->{namespace},
