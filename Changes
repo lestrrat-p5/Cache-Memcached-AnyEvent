@@ -3,6 +3,9 @@ Changes
 
 {{$NEXT}}
 
+0.00023 2015-07-30T23:51:22Z
+    * Avoid reconnnecting when already disconnecting (PR #5)
+
 0.00022 2013-10-04T03:39:14Z
     * Add new serializers (JSON, MessagePack)
     * Update layout by switching to Minilla

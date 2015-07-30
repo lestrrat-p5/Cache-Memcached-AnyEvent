@@ -77,12 +77,12 @@
          "web" : "https://github.com/lestrrat/Cache-Memcached-AnyEvent"
       }
    },
-   "version" : "0.00022",
+   "version" : "0.00023",
    "x_contributors" : [
       "Michael Alan Dorman <mdorman@ironicdesign.com>",
       "Thomas Szukala <schuk@abusix.org>",
       "Sawyer X <xsawyerx@cpan.org>",
       "Michael Gray <mg13@sanger.ac.uk>",
-      "Daisuke Maki <lestrrat@gmail.com>"
+      "Daisuke Maki <lestrrat+github@gmail.com>"
    ]
 }
