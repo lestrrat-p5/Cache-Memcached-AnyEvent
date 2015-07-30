@@ -177,6 +177,7 @@ sub connect {
 
     return if $self->{_is_connecting} || $self->{_is_connected};
     $self->disconnect();
+    delete $self->{_is_disconnecting};
 
     $self->{_is_connecting} = {};
     $self->{_active_servers} = [];
@@ -277,7 +278,7 @@ sub _push_queue {
 sub _drain_queue {
     my $self = shift;
     if (! $self->{_is_connected}) {
-        if ($self->{_is_connecting}) {
+        if ($self->{_is_connecting} or $self->{_is_disconnecting}) {
             return;
         }
         $self->connect;
@@ -320,6 +321,7 @@ sub disconnect {
     delete $self->{_is_draining};
 
     $self->{_server_handles} = {};
+    $self->{_is_disconnecting}++;
 }
 
 sub DESTROY {
