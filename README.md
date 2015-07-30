@@ -33,8 +33,6 @@ Cache::Memcached::AnyEvent - AnyEvent Compatible Memcached Client
         # or, protocol => $object,
     });
 
-
-
 # DESRIPTION
 
 WARNING: BETA QUALITY CODE!
@@ -43,11 +41,11 @@ This module implements the memcached protocol as a AnyEvent consumer, and it imp
 
 # RATIONALE
 
-There's another alternative [AnyEvent](http://search.cpan.org/perldoc?AnyEvent) memcached client, [AnyEvent::Memcached](http://search.cpan.org/perldoc?AnyEvent::Memcached) which is perfectly fine, and I have nothing against you using that module. I just have some specific itches to scratch:
+There's another alternative [AnyEvent](https://metacpan.org/pod/AnyEvent) memcached client, [AnyEvent::Memcached](https://metacpan.org/pod/AnyEvent::Memcached) which is perfectly fine, and I have nothing against you using that module. I just have some specific itches to scratch:
 
 - Prerequisites
 
-    This module, [Cache::Memcached::AnyEvent](http://search.cpan.org/perldoc?Cache::Memcached::AnyEvent), requires the bare minimum prerequisites to install. [AnyEvent::Memcached](http://search.cpan.org/perldoc?AnyEvent::Memcached) requires AnyEvent::Connection and Object::Event ;) Those modules are fine, I just don't use them, so I don't want them.
+    This module, [Cache::Memcached::AnyEvent](https://metacpan.org/pod/Cache::Memcached::AnyEvent), requires the bare minimum prerequisites to install. [AnyEvent::Memcached](https://metacpan.org/pod/AnyEvent::Memcached) requires AnyEvent::Connection and Object::Event ;) Those modules are fine, I just don't use them, so I don't want them.
 
 - Binary Protocol
 
