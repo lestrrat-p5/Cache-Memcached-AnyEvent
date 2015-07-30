@@ -19,7 +19,11 @@ sub run {
     my $warn_called = 0;
     local $SIG{__WARN__} = sub {
 #        like( $_[0], qr/^failed to connect to $bogus_server/);
-        $warn_called++;
+        if ( $_[0] =~ /^failed to connect to $bogus_server/ ) {
+            $warn_called++;
+        } else {
+            warn @_;
+        }
     };
 
     foreach my $i (1..50) {
