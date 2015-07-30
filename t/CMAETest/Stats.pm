@@ -23,6 +23,7 @@ sub run {
             $cv->end;
         } );
         $cv->recv;
+        $memd->disconnect;
     }
     done_testing;
 }
